@@ -885,7 +885,6 @@
         <button class="chip" data-filter="visit" id="filterVisitBtn">見学・散策</button>
         <button class="chip" data-filter="food" id="filterFoodBtn">食事</button>
         <button class="chip" data-filter="move" id="filterMoveBtn">移動</button>
-        <button class="chip" data-filter="photo" id="filterPhotoBtn">📷 写真メモ (0)</button>
       </div>
       <div class="timeline" id="timeline"></div>
     </div>
@@ -1433,7 +1432,7 @@
       document.getElementById('filterVisitBtn').textContent = isEnglish ? 'Visits & Walk' : '見学・散策';
       document.getElementById('filterFoodBtn').textContent = isEnglish ? 'Meals' : '食事';
       document.getElementById('filterMoveBtn').textContent = isEnglish ? 'Transit' : '移動';
-      document.getElementById('filterPhotoBtn').textContent = isEnglish ? `📷 Photo Memos (${photoPins.length})` : `📷 写真メモ (${photoPins.length})`;
+      updateAuthorButtonLabel();
       renderPhotoPins();
     }
 
@@ -2251,13 +2250,7 @@
     }
 
     function updatePhotoMemoBadgeCount() {
-      const fBtn = document.getElementById('filterPhotoBtn');
       const mTitle = document.getElementById('memoPanelToggleTitleText');
-      if (fBtn) {
-        fBtn.textContent = isEnglish
-          ? `📷 Photo Memos (${photoPins.length})`
-          : `📷 写真メモ (${photoPins.length})`;
-      }
       if (mTitle) {
         mTitle.textContent = isEnglish
           ? `📷 Photo Memos (${photoPins.length})`
@@ -2819,46 +2812,6 @@
         const marker = L.marker([pin.lat, pin.lng], { icon }).bindPopup(popupHtml).addTo(photoPinsLayer);
         photoMarkerMap[pin.id] = marker;
       });
-
-      // タイムラインパネル側にも写真メモカードを表示（フィルターが all または photo の場合）
-      const timelineEl = document.getElementById('timeline');
-      if (timelineEl) {
-        timelineEl.querySelectorAll('.photo-memo-card').forEach(el => el.remove());
-        if (currentFilter === 'all' || currentFilter === 'photo') {
-          photoPins.forEach((pin, idx) => {
-            const memoNum = idx + 1;
-            const tagsHtml = renderTagsBadgesHtml(pin.tags);
-            const authorBadge = pin.author ? `<span class="memo-author-badge">👤 ${escapeHtml(pin.author)}</span>` : '';
-            const card = document.createElement('div');
-            card.className = 'card photo-memo-card';
-            card.id = `card-${pin.id}`;
-            card.style.borderLeftColor = '#c62828';
-            card.innerHTML = `
-              <div class="card-header">
-                <span class="badge-no" style="background:#c62828;">📷${memoNum}</span>
-                <span class="time-range" style="color:#c62828;">${escapeHtml(pin.timestamp)}</span>
-                ${authorBadge}
-                <span class="badge-cat">${isEnglish ? 'Photo Memo' : '写真メモ'}</span>
-              </div>
-              <div style="display:flex;gap:10px;align-items:flex-start;margin:6px 0;">
-                <img src="${pin.imageData}" alt="Memo" style="width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid #cfd8dc;flex-shrink:0;" />
-                <div style="flex:1;min-width:0;">
-                  <div class="card-title" style="margin-bottom:3px;">${escapeHtml(pin.comment)}</div>
-                  ${tagsHtml}
-                  <div class="card-place">📍 ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
-                </div>
-              </div>
-              <div class="card-links">
-                <button type="button" class="link-pill share-pill" onclick="event.stopPropagation(); shareSinglePhotoMemo('${pin.id}');">📤 ${isEnglish ? 'Share' : '共有'}</button>
-                <button type="button" class="link-pill edit-pill" onclick="event.stopPropagation(); editPhotoMemo('${pin.id}');">✏️ ${isEnglish ? 'Edit' : '編集'}</button>
-                <button type="button" class="link-pill del-pill" onclick="event.stopPropagation(); deletePhotoMemo('${pin.id}');">🗑️ ${isEnglish ? 'Delete' : '削除'}</button>
-              </div>
-            `;
-            card.addEventListener('click', () => focusPhotoPin(pin.id));
-            timelineEl.appendChild(card);
-          });
-        }
-      }
 
       renderMemoTagStats();
       renderMemoListModalContent();
