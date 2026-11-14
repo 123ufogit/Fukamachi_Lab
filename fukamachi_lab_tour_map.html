@@ -86,7 +86,7 @@
       position: relative;
       width: 100%;
       flex: 1;
-      min-height: 35%;
+      min-height: 28%;
       display: flex;
       flex-direction: column;
     }
@@ -143,7 +143,7 @@
       cursor: pointer;
     }
     .panel {
-      height: 54%;
+      height: 46%;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -153,8 +153,15 @@
       flex-shrink: 0;
       z-index: 500;
     }
-    /* 折りたたみ時（モバイル：下部に最小化） */
-    .panel.collapsed {
+    /* ヘッダー直下に配置する折りたたみ式「写真メモ一覧」パネル（情報パネルとデザイン統一） */
+    .panel.top-memo-panel {
+      border-top: none;
+      border-bottom: 2px solid #cfd8dc;
+      height: 42%;
+    }
+    /* 折りたたみ時（高さ42pxのバーのみ表示） */
+    .panel.collapsed,
+    .panel.top-memo-panel.collapsed {
       height: 42px;
     }
     .panel.collapsed .filter-bar,
@@ -686,26 +693,8 @@
       cursor: pointer;
     }
 
-    /* PC / タブレット横向き時（左サイドパネルの折りたたみ対応） */
+    /* PC / タブレット横向き時（下部パネルとして常に開閉バーを表示） */
     @media (min-width: 768px) {
-      .main-container { flex-direction: row; }
-      .panel {
-        width: 420px;
-        height: 100%;
-        flex: none;
-        border-top: none;
-        border-right: 1px solid #cfd8dc;
-        order: 1;
-      }
-      .panel.collapsed {
-        width: 0;
-        height: 100%;
-        border-right: none;
-      }
-      .panel.collapsed .panel-toggle-bar {
-        display: none;
-      }
-      .map-wrap { flex: 1; height: 100%; order: 2; }
       .step-current-label { max-width: 320px; }
     }
   </style>
@@ -721,18 +710,28 @@
       <button class="btn" id="langToggleBtn" title="英語表示 / ブラウザ翻訳に切り替え (Switch to English)">🌐 English</button>
       <div id="google_translate_element" style="display:none;"></div>
       <button class="btn" id="nowStopBtn" title="現在時刻のチェックポイントを表示">🕒 現在時刻の地点</button>
-      <button class="btn" id="headerTogglePanelBtn" title="情報パネルを開閉">📋 パネルを表示</button>
       <button class="btn" id="fitBoundsBtn" title="全体を表示">🗺️ 全体表示</button>
       <button class="btn" id="locateBtn" title="現在地を表示">📍 現在地</button>
-      <button class="btn camera-btn" id="headerCameraBtn" title="カメラを起動して写真メモを作成">📷 写真メモ撮影</button>
-      <button class="btn" id="headerMemoListBtn" title="作成した写真メモのリストを表示">🗂️ 写真メモ一覧</button>
-      <label class="btn" for="csvFileInput" id="csvLabelBtn" title="CSVファイルを読み込む">📂 CSV読込</label>
-      <input type="file" id="csvFileInput" accept=".csv" />
       <input type="file" id="cameraFileInput" accept="image/*" capture="environment" style="display:none;" />
     </div>
   </header>
 
   <div class="main-container">
+    <!-- ヘッダーの下部分に配置した折りたたみ式「写真メモ一覧」パネル（情報パネルとデザイン統一） -->
+    <div class="panel top-memo-panel collapsed" id="memoPanel">
+      <div class="panel-toggle-bar" id="memoPanelToggleBar" title="タップして写真メモ一覧パネルを開閉">
+        <span class="panel-toggle-title" id="memoPanelToggleTitleText">📷 写真メモ一覧 (0)</span>
+        <span class="toggle-btn-badge" id="memoPanelToggleBadge">▼ 展開する</span>
+      </div>
+      <div class="filter-bar">
+        <button type="button" class="chip active" id="shareAllJsonBtn" title="スマートフォンのクイックシェアやアプリでJSON形式として共有">📤 JSON形式で共有</button>
+        <button type="button" class="chip active" id="shareAllKmzBtn" style="background:#0277bd;border-color:#0277bd;" title="Google EarthやGISアプリで開ける写真入りKMZ形式で共有">🌍 KMZ形式で共有</button>
+        <label class="chip" for="importMemoInput" id="importMemoLabel" style="cursor:pointer;" title="共有された写真メモファイル(.json / .geojson / .kmz)を読み込む">📥 メモ読込</label>
+        <input type="file" id="importMemoInput" accept=".json,.geojson,.kmz" style="display:none;" />
+      </div>
+      <div class="timeline" id="memoListContainer"></div>
+    </div>
+
     <div class="map-wrap">
       <div id="map"></div>
       <!-- スマートフォン向けカメラ起動フローティングボタン -->
@@ -746,6 +745,7 @@
         <button class="step-btn" id="nextStepBtn" title="次のチェックポイントへ移動">次へ ▶</button>
       </div>
     </div>
+
     <div class="panel collapsed" id="infoPanel">
       <div class="panel-toggle-bar" id="panelToggleBar" title="タップして情報パネルを開閉">
         <span class="panel-toggle-title" id="panelToggleTitleText">📋 タイムテーブル・情報パネル (No.1〜15)</span>
@@ -791,23 +791,6 @@
         <button type="button" class="photo-btn share" id="photoSaveAndShareBtn">📤 保存して共有</button>
         <button type="button" class="photo-btn primary" id="photoSaveBtn">📌 写真メモを保存</button>
       </div>
-    </div>
-  </div>
-
-  <!-- 写真メモ一覧モーダル（一括共有・インポート・個別操作） -->
-  <div class="photo-modal-backdrop" id="memoListModalBackdrop">
-    <div class="photo-modal" style="max-width: 540px;">
-      <div class="photo-modal-header">
-        <h2 id="memoListModalTitle">🗂️ 写真メモ一覧・共有</h2>
-        <button class="photo-modal-close" id="memoListCloseBtn" title="閉じる">✕</button>
-      </div>
-      <div style="display:flex; gap:6px; flex-wrap:wrap; border-bottom:1px solid #eceff1; padding-bottom:10px; align-items:center;">
-        <button type="button" class="photo-btn share" id="shareAllJsonBtn" title="スマートフォンのクイックシェアやアプリでJSON形式として共有">📤 JSON形式で共有</button>
-        <button type="button" class="photo-btn primary" id="shareAllKmzBtn" title="Google EarthやGISアプリで開ける写真入りKMZ形式で共有">🌍 KMZ形式で共有</button>
-        <label class="photo-btn cancel" for="importMemoInput" style="cursor:pointer;" title="共有された写真メモファイル(.json / .geojson / .kmz)を読み込む">📥 メモ読込</label>
-        <input type="file" id="importMemoInput" accept=".json,.geojson,.kmz" style="display:none;" />
-      </div>
-      <div id="memoListContainer" style="display:flex; flex-direction:column; gap:10px; max-height:55dvh; overflow-y:auto; padding:4px 2px;"></div>
     </div>
   </div>
 
@@ -1226,10 +1209,14 @@
     const infoPanel = document.getElementById('infoPanel');
     const panelToggleBar = document.getElementById('panelToggleBar');
     const panelToggleBadge = document.getElementById('panelToggleBadge');
-    const headerTogglePanelBtn = document.getElementById('headerTogglePanelBtn');
+
+    const memoPanel = document.getElementById('memoPanel');
+    const memoPanelToggleBar = document.getElementById('memoPanelToggleBar');
+    const memoPanelToggleBadge = document.getElementById('memoPanelToggleBadge');
 
     function updateUIText() {
       const isCollapsed = infoPanel.classList.contains('collapsed');
+      const isMemoCollapsed = memoPanel.classList.contains('collapsed');
       document.documentElement.lang = isEnglish ? 'en' : 'ja';
       document.getElementById('headerTitleText').textContent = isEnglish
         ? '🌲 Kyoto Univ. Fukamachi Lab Fieldwork Map (Dec 4)'
@@ -1239,18 +1226,23 @@
         : '能登・七尾市中島町（西岸・能登中島・和倉温泉）';
       document.getElementById('langToggleBtn').textContent = isEnglish ? '🌐 日本語' : '🌐 English';
       document.getElementById('nowStopBtn').textContent = isEnglish ? '🕒 Current Stop' : '🕒 現在時刻の地点';
-      headerTogglePanelBtn.textContent = isEnglish
-        ? (isCollapsed ? '📋 Show Panel' : '📋 Hide Panel')
-        : (isCollapsed ? '📋 パネルを表示' : '📋 パネルを隠す');
       document.getElementById('fitBoundsBtn').textContent = isEnglish ? '🗺️ Fit All' : '🗺️ 全体表示';
       document.getElementById('locateBtn').textContent = isEnglish ? '📍 My Location' : '📍 現在地';
-      document.getElementById('headerCameraBtn').textContent = isEnglish ? '📷 Take Photo Memo' : '📷 写真メモ撮影';
-      document.getElementById('headerMemoListBtn').textContent = isEnglish ? `🗂️ Photo Memos (${photoPins.length})` : `🗂️ 写真メモ一覧 (${photoPins.length})`;
       document.getElementById('mapCameraFabText').textContent = isEnglish ? 'Photo Memo' : '写真メモ撮影';
-      document.getElementById('csvLabelBtn').textContent = isEnglish ? '📂 Load CSV' : '📂 CSV読込';
 
       document.getElementById('prevStepBtn').textContent = isEnglish ? '◀ Prev' : '◀ 前へ';
       document.getElementById('nextStepBtn').textContent = isEnglish ? 'Next ▶' : '次へ ▶';
+
+      document.getElementById('memoPanelToggleTitleText').textContent = isEnglish
+        ? `📷 Photo Memos (${photoPins.length})`
+        : `📷 写真メモ一覧 (${photoPins.length})`;
+      memoPanelToggleBadge.textContent = isEnglish
+        ? (isMemoCollapsed ? '▼ Expand' : '▲ Collapse')
+        : (isMemoCollapsed ? '▼ 展開する' : '▲ 折りたたむ');
+
+      document.getElementById('shareAllJsonBtn').textContent = isEnglish ? '📤 Share JSON' : '📤 JSON形式で共有';
+      document.getElementById('shareAllKmzBtn').textContent = isEnglish ? '🌍 Share KMZ' : '🌍 KMZ形式で共有';
+      document.getElementById('importMemoLabel').textContent = isEnglish ? '📥 Import Memos' : '📥 メモ読込';
 
       document.getElementById('panelToggleTitleText').textContent = isEnglish
         ? '📋 Timetable & Info Panel (No.1-15)'
@@ -1302,8 +1294,21 @@
       }, 300);
     }
 
+    function toggleMemoPanel(forceState) {
+      const isCollapsed = typeof forceState === 'boolean'
+        ? forceState
+        : !memoPanel.classList.contains('collapsed');
+
+      memoPanel.classList.toggle('collapsed', isCollapsed);
+      updateUIText();
+
+      setTimeout(() => {
+        map.invalidateSize({ animate: true });
+      }, 300);
+    }
+
     panelToggleBar.addEventListener('click', () => togglePanel());
-    headerTogglePanelBtn.addEventListener('click', () => togglePanel());
+    memoPanelToggleBar.addEventListener('click', () => toggleMemoPanel());
 
     const currentStepLabel = document.getElementById('currentStepLabel');
 
@@ -1920,16 +1925,16 @@
 
     function updatePhotoMemoBadgeCount() {
       const fBtn = document.getElementById('filterPhotoBtn');
-      const hBtn = document.getElementById('headerMemoListBtn');
+      const mTitle = document.getElementById('memoPanelToggleTitleText');
       if (fBtn) {
         fBtn.textContent = isEnglish
           ? `📷 Photo Memos (${photoPins.length})`
           : `📷 写真メモ (${photoPins.length})`;
       }
-      if (hBtn) {
-        hBtn.textContent = isEnglish
-          ? `🗂️ Photo Memos (${photoPins.length})`
-          : `🗂️ 写真メモ一覧 (${photoPins.length})`;
+      if (mTitle) {
+        mTitle.textContent = isEnglish
+          ? `📷 Photo Memos (${photoPins.length})`
+          : `📷 写真メモ一覧 (${photoPins.length})`;
       }
     }
 
@@ -2040,7 +2045,6 @@
       input.click();
     }
 
-    document.getElementById('headerCameraBtn').addEventListener('click', openCameraTrigger);
     document.getElementById('mapCameraFab').addEventListener('click', openCameraTrigger);
 
     document.getElementById('cameraFileInput').addEventListener('change', async (e) => {
@@ -2264,7 +2268,6 @@
       const pin = photoPins.find(p => p.id === id);
       const marker = photoMarkerMap[id];
       if (!pin || !marker) return;
-      document.getElementById('memoListModalBackdrop').classList.remove('open');
       map.closePopup();
       map.flyTo([pin.lat, pin.lng], 17, { animate: true, duration: 1.2 });
       map.once('moveend', () => {
@@ -2275,7 +2278,6 @@
     window.editPhotoMemo = function(id) {
       const pin = photoPins.find(p => p.id === id);
       if (!pin) return;
-      document.getElementById('memoListModalBackdrop').classList.remove('open');
       editingPhotoId = pin.id;
       pendingPhotoDataUrl = pin.imageData;
       document.getElementById('photoModalTitle').textContent = isEnglish
@@ -2347,47 +2349,47 @@
       a.click();
     };
 
-    // 写真メモ一覧モーダルの開閉と描画
+    // ヘッダー直下の「写真メモ一覧」折りたたみパネル内のカードリスト描画（情報パネルとデザイン統一）
     function renderMemoListModalContent() {
       const container = document.getElementById('memoListContainer');
       if (!container) return;
       if (photoPins.length === 0) {
-        container.innerHTML = `<div style="padding:24px 12px;text-align:center;color:#607d8b;font-size:0.85rem;">${
+        container.innerHTML = `<div style="padding:18px 12px;text-align:center;color:#607d8b;font-size:0.82rem;background:#fff;border-radius:10px;">${
           isEnglish
-            ? 'No photo memos yet. Tap "📷 Take Photo Memo" to capture a geotagged photo and add comments.'
-            : 'まだ写真メモがありません。「📷 写真メモ撮影」ボタンから位置情報付き写真を撮影して作成できます。'
+            ? 'No photo memos yet. Tap "📷 Photo Memo" on the map to take a geotagged photo and add comments.'
+            : 'まだ写真メモがありません。地図右下の「📷 写真メモ撮影」ボタンから位置情報付き写真を撮影して作成できます。'
         }</div>`;
         return;
       }
 
       container.innerHTML = photoPins.map((pin, idx) => {
         const memoNum = idx + 1;
+        const gmapUrl = `https://www.google.com/maps/search/?api=1&query=${pin.lat},${pin.lng}`;
         return `
-          <div style="display:flex;gap:10px;padding:10px;border:1px solid #cfd8dc;border-radius:10px;background:#fafdfb;align-items:center;">
-            <img src="${pin.imageData}" alt="Memo ${memoNum}" style="width:68px;height:68px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;" onclick="focusPhotoPin('${pin.id}')" />
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;font-size:0.86rem;color:#1b5e20;margin-bottom:2px;">#${memoNum} ${escapeHtml(pin.comment)}</div>
-              <div style="font-size:0.73rem;color:#607d8b;margin-bottom:6px;">🕒 ${escapeHtml(pin.timestamp)} | 📍 ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
-              <div style="display:flex;gap:5px;flex-wrap:wrap;">
-                <button type="button" class="link-pill" onclick="focusPhotoPin('${pin.id}')">🎯 ${isEnglish ? 'Map' : '地図で表示'}</button>
-                <button type="button" class="link-pill share-pill" onclick="shareSinglePhotoMemo('${pin.id}')">📤 ${isEnglish ? 'Share Photo' : '単体共有'}</button>
-                <button type="button" class="link-pill edit-pill" onclick="editPhotoMemo('${pin.id}')">✏️ ${isEnglish ? 'Edit' : '編集'}</button>
-                <button type="button" class="link-pill del-pill" onclick="deletePhotoMemo('${pin.id}')">🗑️ ${isEnglish ? 'Delete' : '削除'}</button>
+          <div class="card" style="border-left-color:#c62828;" onclick="focusPhotoPin('${pin.id}')">
+            <div class="card-header">
+              <span class="badge-no" style="background:#c62828;">📷${memoNum}</span>
+              <span class="time-range" style="color:#c62828;">${escapeHtml(pin.timestamp)}</span>
+              <span class="badge-cat">${isEnglish ? 'Photo Memo' : '写真メモ'}</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;margin:6px 0;">
+              <img src="${pin.imageData}" alt="Memo ${memoNum}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #cfd8dc;flex-shrink:0;" />
+              <div style="flex:1;min-width:0;">
+                <div class="card-title" style="margin-bottom:3px;">${escapeHtml(pin.comment)}</div>
+                <div class="card-place">📍 ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
               </div>
+            </div>
+            <div class="card-links">
+              <button type="button" class="link-pill" onclick="event.stopPropagation(); focusPhotoPin('${pin.id}');">🎯 ${isEnglish ? 'Map' : '地図で表示'}</button>
+              <button type="button" class="link-pill share-pill" onclick="event.stopPropagation(); shareSinglePhotoMemo('${pin.id}');">📤 ${isEnglish ? 'Share' : '単体共有'}</button>
+              <button type="button" class="link-pill edit-pill" onclick="event.stopPropagation(); editPhotoMemo('${pin.id}');">✏️ ${isEnglish ? 'Edit' : '編集'}</button>
+              <a class="link-pill gmap" href="${gmapUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">🗺️ ${isEnglish ? 'Google Maps' : 'Googleマップ'}</a>
+              <button type="button" class="link-pill del-pill" onclick="event.stopPropagation(); deletePhotoMemo('${pin.id}');">🗑️ ${isEnglish ? 'Delete' : '削除'}</button>
             </div>
           </div>
         `;
       }).join('');
     }
-
-    document.getElementById('headerMemoListBtn').addEventListener('click', () => {
-      renderMemoListModalContent();
-      document.getElementById('memoListModalBackdrop').classList.add('open');
-    });
-
-    document.getElementById('memoListCloseBtn').addEventListener('click', () => {
-      document.getElementById('memoListModalBackdrop').classList.remove('open');
-    });
 
     // スマートフォンのQuick Share / アプリ共有またはダウンロードを実行する共通ヘルパー
     async function shareOrDownloadFile(file, title, text) {
@@ -2639,9 +2641,9 @@
       }
     }
 
-    document.querySelectorAll('.chip').forEach(btn => {
+    document.querySelectorAll('#infoPanel .chip').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#infoPanel .chip').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         renderData(currentItems, btn.dataset.filter);
       });
@@ -2669,18 +2671,6 @@
       }, () => {
         alert('現在地を取得できませんでした。位置情報の許可設定をご確認ください。');
       });
-    });
-
-    document.getElementById('csvFileInput').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        currentItems = parseCSV(ev.target.result);
-        renderData(currentItems);
-        fitAllMarkers(true);
-      };
-      reader.readAsText(file, 'UTF-8');
     });
 
     function googleTranslateElementInit() {
