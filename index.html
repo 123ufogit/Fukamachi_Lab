@@ -157,7 +157,7 @@
     .panel.top-memo-panel {
       border-top: none;
       border-bottom: 2px solid #cfd8dc;
-      height: 44%;
+      height: 48%;
     }
     /* 折りたたみ時（情報パネル・写真メモ一覧パネル共通で高さ42pxのバー表示） */
     .panel.collapsed {
@@ -752,30 +752,59 @@
       font-weight: 700;
     }
     .memo-stats-box {
-      background: #fff;
-      border-bottom: 1px solid #cfd8dc;
-      padding: 10px 14px;
+      background: #fafbfc;
+      border: 1px solid #cfd8dc;
+      border-radius: 10px;
+      padding: 12px 14px;
       font-size: 0.78rem;
-      max-height: 220px;
-      overflow-y: auto;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      flex-shrink: 0;
+    }
+    .stats-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .stats-group-title {
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: #37474f;
+      margin: 8px 0 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
     .stat-bar-row {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin: 4px 0;
-      padding: 3px 6px;
-      border-radius: 6px;
+      margin: 3px 0;
+      padding: 4px 8px;
+      border-radius: 8px;
       cursor: pointer;
-      transition: background 0.15s;
+      background: #fff;
+      border: 1px solid #eceff1;
+      transition: all 0.15s ease;
     }
-    .stat-bar-row:hover, .stat-bar-row.active {
+    .stat-bar-row:hover {
+      background: #f1f8e9;
+      border-color: #c8e6c9;
+      transform: translateX(2px);
+    }
+    .stat-bar-row.active {
       background: #e8f5e9;
+      border-color: #81c784;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
     .stat-bar-label {
-      min-width: 135px;
+      min-width: 130px;
+      max-width: 160px;
       font-weight: 700;
-      color: #1b5e20;
       font-size: 0.74rem;
       white-space: nowrap;
       overflow: hidden;
@@ -783,22 +812,46 @@
     }
     .stat-bar-track {
       flex: 1;
-      height: 8px;
+      height: 10px;
       background: #eceff1;
       border-radius: 999px;
       overflow: hidden;
+      position: relative;
     }
     .stat-bar-fill {
       height: 100%;
-      background: var(--primary);
       border-radius: 999px;
+      transition: width 0.3s ease;
+      background: linear-gradient(90deg, #43a047, #2e7d32);
     }
+    .stat-bar-fill.giahs {
+      background: linear-gradient(90deg, #43a047, #2e7d32);
+    }
+    .stat-bar-fill.quake {
+      background: linear-gradient(90deg, #e53935, #c62828);
+    }
+    .stat-bar-fill.custom {
+      background: linear-gradient(90deg, #1e88e5, #1565c0);
+    }
+    .stat-bar-meta,
     .stat-bar-count {
       font-weight: 800;
-      color: #263238;
-      font-size: 0.74rem;
-      min-width: 38px;
+      font-size: 0.72rem;
+      min-width: 52px;
       text-align: right;
+      color: #37474f;
+    }
+    .memo-author-badge.clickable {
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .memo-author-badge.clickable:hover {
+      background: #bbdefb;
+    }
+    .memo-author-badge.active {
+      background: #1976d2;
+      color: #fff;
+      border-color: #1565c0;
     }
     .link-pill.share-pill {
       background: #e3f2fd;
@@ -857,8 +910,12 @@
         <button type="button" class="chip" id="memoTagStatsBtn" title="登録されている写真メモのタグ件数・作成者別件数を集計して表示">📊 タグ集計</button>
         <button type="button" class="chip" id="clearAllMemosBtn" style="color:#c62828;border-color:#ef9a9a;" title="ブラウザのストレージから写真メモを一括削除して空き容量を確保">🗑️ 全削除</button>
       </div>
-      <div class="memo-stats-box" id="memoTagStatsBox" style="display:none;"></div>
-      <div class="timeline" id="memoListContainer"></div>
+      <div class="timeline" id="memoListContainer">
+        <!-- 写真メモ一覧の先頭に配置されるタグ集計グラフ（一覧と一緒に縦スクロール） -->
+        <div class="memo-stats-box" id="memoTagStatsBox" style="display:none;"></div>
+        <!-- 写真メモカードリスト -->
+        <div id="memoCardsList" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
     </div>
 
     <div class="map-wrap">
@@ -977,7 +1034,7 @@
     // 1. 埋め込みCSVデータ（全15チェックポイント）
     const DEFAULT_CSV = `No.,時刻,開始時刻,終了時刻,所要時間,区分,予定・活動内容,場所・施設名,住所・エリア,緯度,経度,緯度・経度 (Lat Lng),詳細・移動手段・備考,参考リンク (名称・URL)
 1,08:00 〜 09:06,08:00,09:06,66分,食事・準備,宿（花ごよみ）で朝食・出発準備,和倉温泉 花ごよみ,石川県七尾市和倉町ヨ部91-1,37.0877,136.9160,"37.0877, 136.9160",08:00〜08:35 朝食と防寒・雨対策の最終チェック / 08:35〜09:06 チェックアウト・身支度を整えてロビー集合,和倉温泉 花ごよみ 公式: http://wakura-hanagoyomi.com/
-2,09:06 〜 09:14,09:06,09:14,8分,移動,和倉温泉駅への移動（和倉観光会館前バス停）,和倉観光会館前バス停（和倉温泉お祭り会館前）,石川県七尾市和倉町2部13-1,37.0866,136.9187,"37.0866, 136.9187",09:06 花ごよみ発 ⇒ 和倉観光会館前へ徒歩移動（約4分） / 09:10 能登島交通バス乗車 / 09:14 和倉温泉駅前着,能登島交通 公式: https://notojimakotsu.co.jp/
+2,09:06 〜 09:14,09:06,09:14,8分,移動,和倉温泉駅への移動（和倉観光会館前バス停）,和倉観光会館前バス停（和倉温泉お祭り会館前）,石川県七尾市和倉町2部13-1,37.0866,136.9187,"37.0866, 136.9187",09:06 花ごよみ発 ⇒ 和倉観光会館前へ徒歩移動（約4分） / 09:10 能登島交通バス乗車 / 09:14 和倉温泉駅前着,能登島交通 路線バス時刻表: https://notojimakotsu.co.jp/bus-schedule/
 3,09:15 〜 09:52,09:15,09:52,37分,集合・移動,和倉温泉駅 集合 ⇒ 西岸駅へ移動,和倉温泉駅,石川県七尾市石崎町ヲ部,37.0749,136.9254,"37.0749, 136.9254",09:15 和倉温泉駅に全員集合・切符購入 / 09:30発 のと鉄道七尾線（穴水行・下り）に乗車して西岸駅へ移動,のと鉄道 公式: https://nototetsu.jp/
 4,09:52 〜 10:00,09:52,10:00,8分,到着・移動,西岸駅 到着 ⇒ atelier morinoto へ徒歩移動,西岸駅,石川県七尾市中島町外,37.1475,136.8743,"37.1475, 136.8743",09:52 西岸駅到着後、atelier morinoto（中島町外ナ9）へ徒歩で移動（約7〜8分）,のと鉄道 公式: https://nototetsu.jp/
 5,10:00 〜 11:00,10:00,11:00,60分,見学①,atelier morinoto 訪問・見学,atelier morinoto,石川県七尾市中島町外ナ9,37.151372,136.878982,"37.15137175005834, 136.87898209754633",【第1訪問先】建築家の森野和彬氏が手掛けた古民家再生拠点を見学,atelier morinoto 紹介ページ: https://hana-saka.jp/member/atelier-morinoto/ | 公式サイト: https://morinoto.jp/ | Googleマップ: https://maps.app.goo.gl/28zCgzgSwQ1wTHfKA
@@ -990,7 +1047,7 @@
 12,15:35 〜 16:10,15:35,16:10,35分,見学④,山口水産 訪問・ヒアリング,有限会社 山口水産,石川県七尾市中島町浜田ラ部26,37.1146,136.8520,"37.1146, 136.8520",【第4訪問先】中島木材工業から徒歩2分移動。県外出身の移住者の方から能登での暮らしや仕事についてお話を伺う,山口水産 公式サイト: https://notokaki-yamaguchisuisan.jp/
 13,16:10 〜 16:20,16:10,16:20,10分,移動,能登中島駅へ移動,能登中島駅,石川県七尾市中島町浜田,37.1091,136.8533,"37.1091, 136.8533",山口水産周辺から「能登中島駅」へ徒歩移動（約10分）,のと鉄道 公式: https://nototetsu.jp/
 14,16:28発 〜 16:43着,16:28,16:43,15分,移動,能登中島駅発 ⇒ 和倉温泉駅着,和倉温泉駅,石川県七尾市石崎町ヲ部,37.0749,136.9254,"37.0749, 136.9254",のと鉄道七尾線（16:28発 七尾行・上り）に乗車して和倉温泉駅へ戻る,のと鉄道 公式: https://nototetsu.jp/
-15,16:43 〜 17:45（送迎なら17:00）,16:43,17:45,62分,移動・到着,和倉温泉駅から宿（花ごよみ）へ移動・帰着解散,和倉温泉 花ごよみ,石川県七尾市和倉町ヨ部91-1,37.0877,136.9160,"37.0877, 136.9160","①宿の送迎バス予約（16:45頃発⇒17:00花ごよみ着・解散）、または②路線バス 17:35発（能登島交通・のとじま臨海公園行）乗車⇒17:39 和倉観光会館前着⇒徒歩4分で17:45花ごよみ帰着・解散",能登島交通 公式: https://notojimakotsu.co.jp/ | 和倉温泉 花ごよみ 公式: http://wakura-hanagoyomi.com/`;
+15,16:43 〜 17:45（送迎なら17:00）,16:43,17:45,62分,移動・到着,和倉温泉駅から宿（花ごよみ）へ移動・帰着解散,和倉温泉 花ごよみ,石川県七尾市和倉町ヨ部91-1,37.0877,136.9160,"37.0877, 136.9160","①宿の送迎バス予約（16:45頃発⇒17:00花ごよみ着・解散）、または②路線バス 17:35発（能登島交通・のとじま臨海公園行）乗車⇒17:39 和倉観光会館前着⇒徒歩4分で17:45花ごよみ帰着・解散",能登島交通 路線バス時刻表: https://notojimakotsu.co.jp/bus-schedule/ | 和倉温泉 花ごよみ 公式: http://wakura-hanagoyomi.com/`;
 
     // 2. CSVパーサー（時刻判定用の開始・終了分も算出）
     function timeStrToMins(str) {
@@ -2962,10 +3019,15 @@
       const box = document.getElementById('memoTagStatsBox');
       const btn = document.getElementById('memoTagStatsBtn');
       const isOpen = box.style.display !== 'none';
+      if (memoPanel.classList.contains('collapsed')) {
+        toggleMemoPanel(false); // パネルが折りたたまれている場合は展開
+      }
       box.style.display = isOpen ? 'none' : 'block';
       btn.classList.toggle('active', !isOpen);
       if (!isOpen) {
         renderMemoTagStats();
+        const listContainer = document.getElementById('memoListContainer');
+        if (listContainer) listContainer.scrollTop = 0;
       }
     });
 
@@ -2993,6 +3055,14 @@
         alert(isEnglish ? 'Copied tag summary to clipboard!' : 'タグ集計結果をクリップボードにコピーしました。');
       }).catch(() => {});
     };
+
+    const GIAHS_PRESET_TAGS = new Set([
+      'アテ林業', '二次林・薪炭林', '谷地田・棚田', 'ため池・水路', '能登かき養殖',
+      '里海・七尾湾', '伝統集落・古民家', '製材・木工利用', '農林水産の循環', '生物多様性・植生'
+    ]);
+    const QUAKE_PRESET_TAGS = new Set([
+      '斜面崩壊・地盤変状', '建物被害・公費解体', 'インフラ被害・復旧', '生業再建・なりわい復興', '創造的復興・地域拠点'
+    ]);
 
     function renderMemoTagStats() {
       const box = document.getElementById('memoTagStatsBox');
@@ -3028,10 +3098,13 @@
         : sortedTags.map(([tag, count]) => {
             const pct = Math.max(8, Math.round((count / maxCount) * 100));
             const isSelected = selectedStatsFilterTag === tag;
+            let catClass = 'custom';
+            if (GIAHS_PRESET_TAGS.has(tag)) catClass = 'giahs';
+            else if (QUAKE_PRESET_TAGS.has(tag)) catClass = 'quake';
             return `
               <div class="stat-bar-row${isSelected ? ' active' : ''}" onclick="toggleStatsTagFilter('${escapeHtml(tag)}')" title="タップしてこのタグの写真メモを絞り込み">
                 <span class="stat-bar-label">#${escapeHtml(tag)}</span>
-                <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%;"></div></div>
+                <div class="stat-bar-track"><div class="stat-bar-fill ${catClass}" style="width:${pct}%;"></div></div>
                 <span class="stat-bar-count">${count}${isEnglish ? '' : '回'}</span>
               </div>
             `;
@@ -3059,7 +3132,7 @@
 
     // ヘッダー直下の「写真メモ一覧」折りたたみパネル内のカードリスト描画（情報パネルとデザイン統一）
     function renderMemoListModalContent() {
-      const container = document.getElementById('memoListContainer');
+      const container = document.getElementById('memoCardsList') || document.getElementById('memoListContainer');
       if (!container) return;
       if (photoPins.length === 0) {
         container.innerHTML = `<div style="padding:18px 12px;text-align:center;color:#607d8b;font-size:0.82rem;background:#fff;border-radius:10px;">${
