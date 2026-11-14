@@ -1,0 +1,2963 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>京都大学 深町研究室 ゼミ旅行（12/4 能登・中島町フィールドワーク）デジタルしおり＆マップ</title>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <style>
+    :root {
+      --primary: #1b5e20;
+      --primary-light: #e8f5e9;
+      --accent: #0277bd;
+      --visit: #d84315;
+      --food: #ef6c00;
+      --move: #1565c0;
+      --bg: #f5f7f6;
+      --card-bg: #ffffff;
+      --text: #1c2526;
+      --muted: #607d8b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    /* Header */
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+      z-index: 1000;
+      flex-shrink: 0;
+    }
+    .header-title h1 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    .header-title p {
+      font-size: 0.72rem;
+      opacity: 0.9;
+    }
+    .header-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn:active { transform: scale(0.97); }
+    #csvFileInput { display: none; }
+
+    /* Main Split Layout */
+    .main-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    .map-wrap {
+      position: relative;
+      width: 100%;
+      flex: 1;
+      min-height: 28%;
+      display: flex;
+      flex-direction: column;
+    }
+    #map {
+      width: 100%;
+      flex: 1;
+      height: 100%;
+      z-index: 1;
+    }
+    /* パネルの外（地図下部）に常時表示される「前へ / 次へ」ナビゲーションバー */
+    .map-step-bar {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 800;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid #cfd8dc;
+      border-radius: 999px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+      padding: 5px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: calc(100% - 20px);
+      backdrop-filter: blur(4px);
+    }
+    .step-btn {
+      border: 1px solid var(--primary);
+      background: var(--primary);
+      color: #fff;
+      padding: 6px 13px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .step-btn:active {
+      transform: scale(0.96);
+      background: #144a18;
+    }
+    .step-current-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 210px;
+      padding: 0 4px;
+      cursor: pointer;
+    }
+    .panel {
+      height: 46%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+      border-top: 2px solid #cfd8dc;
+      transition: height 0.28s ease, width 0.28s ease;
+      flex-shrink: 0;
+      z-index: 500;
+    }
+    /* ヘッダー直下に配置する折りたたみ式「写真メモ一覧」パネル（情報パネルとデザイン統一） */
+    .panel.top-memo-panel {
+      border-top: none;
+      border-bottom: 2px solid #cfd8dc;
+      height: 44%;
+    }
+    /* 折りたたみ時（情報パネル・写真メモ一覧パネル共通で高さ42pxのバー表示） */
+    .panel.collapsed {
+      height: 42px;
+    }
+    .panel.collapsed .filter-bar,
+    .panel.collapsed .timeline {
+      display: none;
+    }
+
+    /* 情報パネルの開閉ハンドルバー（前へ・次へボタン内蔵） */
+    .panel-toggle-bar {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .panel-toggle-bar:hover {
+      background: #f1f8e9;
+    }
+    .panel-toggle-title {
+      font-size: 0.80rem;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .panel-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .panel-nav-btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 4px 9px;
+      font-size: 0.73rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .panel-nav-btn:active {
+      transform: scale(0.95);
+    }
+    .toggle-btn-badge {
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid #a5d6a7;
+      border-radius: 6px;
+      padding: 4px 9px;
+      font-size: 0.73rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 6px;
+      padding: 8px 12px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      overflow-x: auto;
+      flex-shrink: 0;
+      align-items: center;
+    }
+    .chip {
+      border: 1px solid #cfd8dc;
+      background: #f8f9fa;
+      color: var(--text);
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .chip.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .step-nav {
+      margin-left: auto;
+      display: flex;
+      gap: 4px;
+    }
+    .step-btn {
+      border: 1px solid #b0bec5;
+      background: #fff;
+      color: var(--primary);
+      padding: 4px 9px;
+      border-radius: 6px;
+      font-size: 0.73rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .step-btn:active { background: var(--primary-light); }
+
+    .timeline {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border-left: 5px solid var(--primary);
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .card:hover { background: #fafdfb; }
+    .card.active {
+      background: var(--primary-light);
+      box-shadow: 0 2px 8px rgba(27,94,32,0.22);
+    }
+    .card[data-cat^="見学"], .card[data-cat="散策"] { border-left-color: var(--visit); }
+    .card[data-cat="昼食"], .card[data-cat="食事"] { border-left-color: var(--food); }
+    .card[data-cat^="移動"] { border-left-color: var(--move); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .badge-no {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.75rem;
+      min-width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6px;
+    }
+    .card[data-cat^="見学"] .badge-no, .card[data-cat="散策"] .badge-no { background: var(--visit); }
+    .card[data-cat="昼食"] .badge-no, .card[data-cat="食事"] .badge-no { background: var(--food); }
+    .card[data-cat^="移動"] .badge-no { background: var(--move); }
+
+    .time-range {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .badge-cat {
+      font-size: 0.68rem;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: #eceff1;
+      color: #37474f;
+      font-weight: 600;
+      margin-left: auto;
+    }
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #111;
+    }
+    .card-place {
+      font-size: 0.76rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .card-detail {
+      font-size: 0.82rem;
+      line-height: 1.45;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    .card-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .link-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: #e1f5fe;
+      padding: 4px 9px;
+      border-radius: 6px;
+      text-decoration: none;
+    }
+    .link-pill.gmap {
+      color: #2e7d32;
+      background: #e8f5e9;
+    }
+    .link-pill.sv {
+      color: #6a1b9a;
+      background: #f3e5f5;
+      border: 1px solid #e1bee7;
+    }
+
+    /* Custom Numbered Map Marker */
+    .num-marker {
+      background: var(--primary);
+      color: #fff;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      font-weight: 700;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+      transition: background 0.25s, opacity 0.25s;
+    }
+    .num-marker.visit { background: var(--visit); }
+    .num-marker.food { background: var(--food); }
+    .num-marker.move { background: var(--move); }
+    /* 訪問終了（現在時刻を過ぎた）ピンのグレーアウト */
+    .num-marker.past {
+      background: #90a4ae !important;
+      color: #eceff1 !important;
+      opacity: 0.72;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    /* 訪問終了（現在時刻を過ぎた）カード・ボタンのグレーアウト */
+    .card.past {
+      background: #eceff1;
+      border-left-color: #90a4ae !important;
+      opacity: 0.72;
+    }
+    .card.past .badge-no {
+      background: #90a4ae !important;
+    }
+    .card.past .time-range,
+    .card.past .card-title,
+    .card.past .card-detail {
+      color: #607d8b;
+    }
+    .card.past .link-pill {
+      background: #cfd8dc;
+      color: #546e7a;
+    }
+    .card.past.active {
+      opacity: 0.95;
+      background: #e0e7ea;
+    }
+    .badge-status {
+      font-size: 0.68rem;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .badge-status.done {
+      background: #cfd8dc;
+      color: #455a64;
+    }
+    .badge-status.now {
+      background: #c8e6c9;
+      color: #1b5e20;
+      border: 1px solid #81c784;
+    }
+
+    .leaflet-popup-content {
+      margin: 10px 12px;
+      line-height: 1.45;
+      font-size: 0.82rem;
+    }
+    .popup-title {
+      font-weight: 700;
+      font-size: 0.92rem;
+      margin-bottom: 4px;
+      color: var(--primary);
+    }
+
+    /* 地図上のカメラ起動フローティングボタン (FAB) */
+    .map-camera-fab {
+      position: absolute;
+      bottom: 64px;
+      right: 14px;
+      z-index: 800;
+      background: #c62828;
+      color: #fff;
+      border: 2px solid #fff;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.15s, background 0.2s;
+    }
+    .map-camera-fab:hover {
+      background: #b71c1c;
+    }
+    .map-camera-fab:active {
+      transform: scale(0.95);
+    }
+    .btn.camera-btn {
+      background: #d32f2f;
+      border-color: #ffcdd2;
+      font-weight: 700;
+    }
+
+    /* 撮影した写真ピン (Photo Marker) */
+    .photo-marker {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 3px solid #c62828;
+      background: #fff;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .photo-marker img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .photo-marker-badge {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      background: #c62828;
+      color: #fff;
+      border-radius: 50%;
+      font-size: 10px;
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #fff;
+    }
+
+    /* 写真ピン登録・コメント編集モーダル */
+    .photo-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      backdrop-filter: blur(3px);
+    }
+    .photo-modal-backdrop.open {
+      display: flex;
+    }
+    .photo-modal {
+      background: #fff;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 430px;
+      max-height: 90dvh;
+      overflow-y: auto;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .photo-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #eceff1;
+      padding-bottom: 8px;
+    }
+    .photo-modal-header h2 {
+      font-size: 0.98rem;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .photo-modal-close {
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: #607d8b;
+      padding: 2px 6px;
+    }
+    .photo-preview-box {
+      width: 100%;
+      max-height: 220px;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #263238;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .photo-preview-box img {
+      width: 100%;
+      max-height: 220px;
+      object-fit: contain;
+    }
+    .photo-coord-bar {
+      font-size: 0.76rem;
+      color: #37474f;
+      background: #f1f8e9;
+      border: 1px solid #c5e1a5;
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .photo-coord-inputs {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .photo-coord-inputs input {
+      width: 115px;
+      padding: 4px 6px;
+      border: 1px solid #cfd8dc;
+      border-radius: 5px;
+      font-size: 0.75rem;
+    }
+    .photo-comment-input {
+      width: 100%;
+      min-height: 68px;
+      border: 1px solid #b0bec5;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      resize: vertical;
+    }
+    .photo-modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    .photo-btn {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .photo-btn.primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .photo-btn.share {
+      background: #0277bd;
+      color: #fff;
+    }
+    .photo-btn.cancel {
+      background: #eceff1;
+      color: #455a64;
+    }
+    .photo-popup-img {
+      width: 100%;
+      max-width: 240px;
+      max-height: 180px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin: 6px 0;
+      display: block;
+      cursor: pointer;
+      border: 1px solid #cfd8dc;
+    }
+    .photo-popup-comment {
+      background: #f8f9fa;
+      border-left: 3px solid #c62828;
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      color: #263238;
+      margin-bottom: 8px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .link-pill.share-pill {
+      background: #e3f2fd;
+      color: #0d47a1;
+      border: 1px solid #90caf9;
+      cursor: pointer;
+    }
+    .link-pill.edit-pill {
+      background: #fff3e0;
+      color: #e65100;
+      border: 1px solid #ffcc80;
+      cursor: pointer;
+    }
+    .link-pill.del-pill {
+      background: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+      cursor: pointer;
+    }
+
+    /* PC / タブレット横向き時（下部パネルとして常に開閉バーを表示） */
+    @media (min-width: 768px) {
+      .step-current-label { max-width: 320px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-title">
+      <h1 id="headerTitleText">🌲 京大・深町研究室 ゼミ旅行マップ (12/4)</h1>
+      <p id="headerSubText">能登・七尾市中島町（西岸・能登中島・和倉温泉）</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn" id="langToggleBtn" title="英語表示 / ブラウザ翻訳に切り替え (Switch to English)">🌐 English</button>
+      <div id="google_translate_element" style="display:none;"></div>
+      <button class="btn" id="nowStopBtn" title="現在時刻のチェックポイントを表示">🕒 現在時刻の地点</button>
+      <button class="btn" id="fitBoundsBtn" title="全体を表示">🗺️ 全体表示</button>
+      <button class="btn" id="locateBtn" title="現在地を表示">📍 現在地</button>
+      <input type="file" id="cameraFileInput" accept="image/*" style="display:none;" />
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- ヘッダーの下部分に展開される折りたたみ式「写真メモ一覧」パネル（情報パネルとデザイン統一） -->
+    <div class="panel top-memo-panel collapsed" id="memoPanel">
+      <div class="panel-toggle-bar" id="memoPanelToggleBar" title="タップして写真メモ一覧パネルを開閉">
+        <span class="panel-toggle-title" id="memoPanelToggleTitleText">📷 写真メモ一覧 (0)</span>
+        <span class="toggle-btn-badge" id="memoPanelToggleBadge">▼ 展開する</span>
+      </div>
+      <div class="filter-bar">
+        <button type="button" class="chip active" id="shareAllJsonBtn" title="スマートフォンのクイックシェアやアプリでJSON形式として共有">📤 JSON形式で共有</button>
+        <button type="button" class="chip active" id="shareAllKmzBtn" style="background:#0277bd;border-color:#0277bd;" title="Google EarthやGISアプリで開ける写真入りKMZ形式で共有">🌍 KMZ形式で共有</button>
+        <label class="chip" for="importMemoInput" id="importMemoLabel" style="cursor:pointer;" title="共有された写真メモファイル(.json / .geojson / .kmz)を読み込む">📥 メモ読込</label>
+        <input type="file" id="importMemoInput" accept=".json,.geojson,.kmz" style="display:none;" />
+        <button type="button" class="chip" id="clearAllMemosBtn" style="color:#c62828;border-color:#ef9a9a;" title="ブラウザのストレージから写真メモを一括削除して空き容量を確保">🗑️ 全削除</button>
+      </div>
+      <div class="timeline" id="memoListContainer"></div>
+    </div>
+
+    <div class="map-wrap">
+      <div id="map"></div>
+      <!-- スマートフォン向けカメラ起動フローティングボタン -->
+      <button class="map-camera-fab" id="mapCameraFab" title="カメラを起動して写真メモを作成">
+        📷 <span id="mapCameraFabText">写真メモ撮影</span>
+      </button>
+      <!-- パネルの外（地図上）に常時表示される前へ・次へボタンバー -->
+      <div class="map-step-bar">
+        <button class="step-btn" id="prevStepBtn" title="前のチェックポイントへ移動">◀ 前へ</button>
+        <span class="step-current-label" id="currentStepLabel" title="タップしてこの地点にフォーカス">No.1〜15 を選択</span>
+        <button class="step-btn" id="nextStepBtn" title="次のチェックポイントへ移動">次へ ▶</button>
+      </div>
+    </div>
+
+    <div class="panel collapsed" id="infoPanel">
+      <div class="panel-toggle-bar" id="panelToggleBar" title="タップして情報パネルを開閉">
+        <span class="panel-toggle-title" id="panelToggleTitleText">📋 タイムテーブル・情報パネル (No.1〜15)</span>
+        <span class="toggle-btn-badge" id="panelToggleBadge">▲ 展開する</span>
+      </div>
+      <div class="filter-bar">
+        <button class="chip active" data-filter="all" id="filterAllBtn">すべて</button>
+        <button class="chip" data-filter="visit" id="filterVisitBtn">見学・散策</button>
+        <button class="chip" data-filter="food" id="filterFoodBtn">食事</button>
+        <button class="chip" data-filter="move" id="filterMoveBtn">移動</button>
+        <button class="chip" data-filter="photo" id="filterPhotoBtn">📷 写真メモ (0)</button>
+      </div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+  </div>
+
+  <!-- 写真メモの登録・コメント入力・共有モーダル -->
+  <div class="photo-modal-backdrop" id="photoModalBackdrop">
+    <div class="photo-modal">
+      <div class="photo-modal-header">
+        <h2 id="photoModalTitle">📷 写真メモの作成</h2>
+        <button class="photo-modal-close" id="photoModalCloseBtn" title="閉じる">✕</button>
+      </div>
+      <!-- メモリ消費を抑えるブラウザ内蔵ライブカメラビュー（または写真選択） -->
+      <div id="liveCameraSection" style="display:none; flex-direction:column; gap:8px;">
+        <div style="position:relative; width:100%; border-radius:10px; overflow:hidden; background:#000; max-height:240px; display:flex; align-items:center; justify-content:center;">
+          <video id="liveCameraVideo" autoplay playsinline muted style="width:100%; max-height:240px; object-fit:contain;"></video>
+        </div>
+        <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+          <button type="button" class="photo-btn primary" id="shutterCaptureBtn" style="flex:1; justify-content:center;">📸 この画面を撮影（省メモリ）</button>
+          <button type="button" class="photo-btn cancel" id="fallbackFilePickerBtn">🖼️ アルバム / 標準カメラ</button>
+        </div>
+      </div>
+      <div class="photo-preview-box" id="photoPreviewBox">
+        <img id="photoPreviewImg" src="" alt="Preview" />
+      </div>
+      <div id="retakeBar" style="display:none; justify-content:space-between; align-items:center; gap:6px;">
+        <button type="button" class="link-pill" id="retakeCameraBtn" style="cursor:pointer;">🔄 再撮影する</button>
+        <button type="button" class="link-pill" id="reselectFileBtn" style="cursor:pointer;">🖼️ 別の写真を選択</button>
+      </div>
+      <div class="photo-coord-bar">
+        <div id="photoCoordStatus">📍 位置情報を取得中...</div>
+        <div class="photo-coord-inputs">
+          <label style="font-weight:600;">緯度:</label>
+          <input type="number" step="0.000001" id="photoLatInput" />
+          <label style="font-weight:600;">経度:</label>
+          <input type="number" step="0.000001" id="photoLngInput" />
+          <button type="button" class="step-btn" id="photoUseCenterBtn" style="padding:3px 8px;font-size:0.7rem;">現在表示中心</button>
+        </div>
+      </div>
+      <div>
+        <label id="photoCommentLabel" style="font-size:0.78rem;font-weight:700;color:#37474f;display:block;margin-bottom:4px;">💬 写真メモのコメント</label>
+        <textarea class="photo-comment-input" id="photoCommentInput" placeholder="観察メモやコメントを入力してください（例：アテの林内景観、カキ棚の様子など）"></textarea>
+      </div>
+      <div class="photo-modal-actions">
+        <button type="button" class="photo-btn cancel" id="photoCancelBtn">キャンセル</button>
+        <button type="button" class="photo-btn share" id="photoSaveAndShareBtn">📤 保存して共有</button>
+        <button type="button" class="photo-btn primary" id="photoSaveBtn">📌 写真メモを保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS & JSZip (KMZ生成・読込用) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
+  <script>
+    // 1. 埋め込みCSVデータ（全15チェックポイント）
+    const DEFAULT_CSV = `No.,時刻,開始時刻,終了時刻,所要時間,区分,予定・活動内容,場所・施設名,住所・エリア,緯度,経度,緯度・経度 (Lat Lng),詳細・移動手段・備考,参考リンク (名称・URL)
+1,08:00 〜 09:06,08:00,09:06,66分,食事・準備,宿（花ごよみ）で朝食・出発準備,和倉温泉 花ごよみ,石川県七尾市和倉町ヨ部91-1,37.0877,136.9160,"37.0877, 136.9160",08:00〜08:35 朝食と防寒・雨対策の最終チェック / 08:35〜09:06 チェックアウト・身支度を整えてロビー集合,和倉温泉 花ごよみ 公式: http://wakura-hanagoyomi.com/
+2,09:06 〜 09:14,09:06,09:14,8分,移動,和倉温泉駅への移動（和倉観光会館前バス停）,和倉観光会館前バス停（和倉温泉お祭り会館前）,石川県七尾市和倉町2部13-1,37.0866,136.9187,"37.0866, 136.9187",09:06 花ごよみ発 ⇒ 和倉観光会館前へ徒歩移動（約4分） / 09:10 能登島交通バス乗車 / 09:14 和倉温泉駅前着,能登島交通 公式: https://notojimakotsu.co.jp/
+3,09:15 〜 09:52,09:15,09:52,37分,集合・移動,和倉温泉駅 集合 ⇒ 西岸駅へ移動,和倉温泉駅,石川県七尾市石崎町ヲ部,37.0749,136.9254,"37.0749, 136.9254",09:15 和倉温泉駅に全員集合・切符購入 / 09:30発 のと鉄道七尾線（穴水行・下り）に乗車して西岸駅へ移動,のと鉄道 公式: https://nototetsu.jp/
+4,09:52 〜 10:00,09:52,10:00,8分,到着・移動,西岸駅 到着 ⇒ atelier morinoto へ徒歩移動,西岸駅,石川県七尾市中島町外,37.1475,136.8743,"37.1475, 136.8743",09:52 西岸駅到着後、atelier morinoto（中島町外ナ9）へ徒歩で移動（約7〜8分）,のと鉄道 公式: https://nototetsu.jp/
+5,10:00 〜 11:00,10:00,11:00,60分,見学①,atelier morinoto 訪問・見学,atelier morinoto,石川県七尾市中島町外ナ9,37.151372,136.878982,"37.15137175005834, 136.87898209754633",【第1訪問先】建築家の森野和彬氏が手掛けた古民家再生拠点を見学,atelier morinoto 紹介ページ: https://hana-saka.jp/member/atelier-morinoto/ | 公式サイト: https://morinoto.jp/ | Googleマップ: https://maps.app.goo.gl/28zCgzgSwQ1wTHfKA
+6,11:00 〜 12:00,11:00,12:00,60分,散策,里山フィールドワーク,七尾市中島町外地区,石川県七尾市中島町外,37.149561,136.873502,"37.149561, 136.873502",【周辺散策】七尾市中島町外地区の集落景観や農地背後の森林を歩きアテ（ヒノキアスナロ）などを観察,ATE-NET（能登ヒバの創造的復興）: https://ate-net.jp/
+7,12:00 〜 13:00,12:00,13:00,60分,昼食,「泊＋カフェ遊帆」で昼食,泊＋カフェ遊帆,石川県七尾市中島町外イ21-2,37.1466,136.8749,"37.1466, 136.8749",タイ料理やこだわりの「発芽酵素玄米」を楽しむ,泊＋カフェ遊帆 (Facebook): https://www.facebook.com/177345402318399?ref=embed_page | 紹介ページ: https://notopuca.com/youho/
+8,13:00 〜 14:15,13:00,14:15,75分,見学②,「株式会社 宮本水産」 訪問,株式会社 宮本水産,石川県七尾市中島町外イ29,37.1463,136.8753,"37.1463, 136.8753",【第2訪問先】宮本惣一朗様に能登かきや水産業、アテ（ヒノキアスナロ）の木材利用のお話を伺う,宮本水産 公式サイト: https://www.notokaki.com/ | Hibi-ki インタビュー記事「日本でただ一人の「カナアテ」の生産者」: https://hibi-ki.co.jp/moridehataraku027/
+9,14:15 〜 14:35,14:15,14:35,20分,移動・待機,西岸駅へ移動・乗車待機,西岸駅,石川県七尾市中島町外,37.1475,136.8743,"37.1475, 136.8743",宮本水産から西岸駅へ徒歩移動（約3分）・休憩・駅舎見学,のと鉄道 公式: https://nototetsu.jp/
+10,14:35発 〜 14:42着,14:35,14:42,7分,移動,西岸駅発 ⇒ 能登中島駅着,能登中島駅,石川県七尾市中島町浜田,37.1091,136.8533,"37.1091, 136.8533",のと鉄道七尾線（14:35発 七尾行・上り）に乗車して隣の「能登中島駅」へ移動,のと鉄道 公式: https://nototetsu.jp/
+11,14:42 〜 15:35,14:42,15:35,53分,見学③,中島木材工業へ徒歩移動・訪問見学,有限会社 中島木材工業,石川県七尾市中島町中島乙161,37.1151,136.8529,"37.1151, 136.8529",14:42 能登中島駅から北へ約700m（徒歩約10分）移動 / 14:55〜15:35 【第3訪問先】アテ（ヒノキアスナロ）の製材や「能登ヒバ」の加工・特徴についてお話を伺う,ATE-NET（能登ヒバの創造的復興）: https://ate-net.jp/ | Googleマップ: https://www.google.com/maps/search/?api=1&query=37.1151,136.8529
+12,15:35 〜 16:10,15:35,16:10,35分,見学④,山口水産 訪問・ヒアリング,有限会社 山口水産,石川県七尾市中島町浜田ラ部26,37.1146,136.8520,"37.1146, 136.8520",【第4訪問先】中島木材工業から徒歩2分移動。県外出身の移住者の方から能登での暮らしや仕事についてお話を伺う,山口水産 公式サイト: https://notokaki-yamaguchisuisan.jp/
+13,16:10 〜 16:20,16:10,16:20,10分,移動,能登中島駅へ移動,能登中島駅,石川県七尾市中島町浜田,37.1091,136.8533,"37.1091, 136.8533",山口水産周辺から「能登中島駅」へ徒歩移動（約10分）,のと鉄道 公式: https://nototetsu.jp/
+14,16:28発 〜 16:43着,16:28,16:43,15分,移動,能登中島駅発 ⇒ 和倉温泉駅着,和倉温泉駅,石川県七尾市石崎町ヲ部,37.0749,136.9254,"37.0749, 136.9254",のと鉄道七尾線（16:28発 七尾行・上り）に乗車して和倉温泉駅へ戻る,のと鉄道 公式: https://nototetsu.jp/
+15,16:43 〜 17:45（送迎なら17:00）,16:43,17:45,62分,移動・到着,和倉温泉駅から宿（花ごよみ）へ移動・帰着解散,和倉温泉 花ごよみ,石川県七尾市和倉町ヨ部91-1,37.0877,136.9160,"37.0877, 136.9160","①宿の送迎バス予約（16:45頃発⇒17:00花ごよみ着・解散）、または②路線バス 17:35発（能登島交通・のとじま臨海公園行）乗車⇒17:39 和倉観光会館前着⇒徒歩4分で17:45花ごよみ帰着・解散",能登島交通 公式: https://notojimakotsu.co.jp/ | 和倉温泉 花ごよみ 公式: http://wakura-hanagoyomi.com/`;
+
+    // 2. CSVパーサー（時刻判定用の開始・終了分も算出）
+    function timeStrToMins(str) {
+      if (!str) return null;
+      const m = str.match(/(\d{1,2}):(\d{2})/);
+      if (!m) return null;
+      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    }
+
+    function parseCSV(text) {
+      const lines = text.trim().split(/\r?\n/);
+      const headers = splitCSVLine(lines[0]);
+      return lines.slice(1).filter(l => l.trim()).map((line, idx) => {
+        const cols = splitCSVLine(line);
+        const row = {};
+        headers.forEach((h, i) => row[h.trim()] = (cols[i] || '').trim());
+        const no = row['No.'] || String(idx + 1);
+        const time = row['時刻'] || `${row['開始時刻'] || ''} 〜 ${row['終了時刻'] || ''}`;
+        let startMins = timeStrToMins(row['開始時刻']);
+        let endMins = timeStrToMins(row['終了時刻']);
+        if (startMins === null || endMins === null) {
+          const matches = [...time.matchAll(/(\d{1,2}):(\d{2})/g)];
+          if (matches.length >= 1) startMins = parseInt(matches[0][1], 10) * 60 + parseInt(matches[0][2], 10);
+          if (matches.length >= 2) endMins = parseInt(matches[1][1], 10) * 60 + parseInt(matches[1][2], 10);
+          else if (startMins !== null) endMins = startMins + 15;
+        }
+        const title = row['予定・活動内容'] || '';
+        const cat = row['区分'] || guessCategory(title);
+        const place = row['場所・施設名'] || '';
+        const address = row['住所・エリア'] || '';
+        let lat = parseFloat(row['緯度']);
+        let lng = parseFloat(row['経度']);
+        if (isNaN(lat) || isNaN(lng)) {
+          const pair = (row['緯度・経度 (Lat Lng)'] || '').split(',');
+          if (pair.length >= 2) {
+            lat = parseFloat(pair[0]);
+            lng = parseFloat(pair[1]);
+          }
+        }
+        const detail = row['詳細・移動手段・備考'] || row['詳細・移動手段・参考リンク'] || '';
+        const rawLinks = row['参考リンク (名称・URL)'] || row['参考リンク (URL)'] || detail;
+        return { no, time, startMins, endMins, title, cat, place, address, lat, lng, detail, links: extractLinks(rawLinks) };
+      });
+    }
+
+    // 現在時刻（またはURLパラメータ ?no= / ?time=HH:MM）に対応するチェックポイントNoを返す
+    function getScheduledNoForNow(items) {
+      if (!items || !items.length) return null;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('no')) return String(params.get('no'));
+
+      let nowMins;
+      if (params.get('time')) {
+        nowMins = timeStrToMins(params.get('time'));
+      }
+      if (nowMins === null || nowMins === undefined) {
+        const now = new Date();
+        nowMins = now.getHours() * 60 + now.getMinutes();
+      }
+
+      // 1. 現在時刻が [開始時刻, 終了時刻] の範囲内にあるチェックポイントを探す
+      for (const item of items) {
+        if (item.startMins !== null && item.endMins !== null) {
+          if (nowMins >= item.startMins && nowMins <= item.endMins) {
+            return String(item.no);
+          }
+        }
+      }
+      // 2. 予定と予定の間の隙間時間（数分間）にいる場合は、直後のチェックポイントを返す
+      for (const item of items) {
+        if (item.startMins !== null && nowMins < item.startMins) {
+          return String(item.no);
+        }
+      }
+      // 3. 全行程終了後の時間帯は最後のチェックポイントを返す
+      return String(items[items.length - 1].no);
+    }
+
+    function splitCSVLine(line) {
+      const result = [];
+      let cur = '', inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+          result.push(cur);
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      result.push(cur);
+      return result;
+    }
+
+    function guessCategory(title) {
+      if (title.includes('見学') || title.includes('訪問') || title.includes('ワーク')) return '見学';
+      if (title.includes('昼食') || title.includes('朝食')) return '食事';
+      return '移動';
+    }
+
+    function extractLinks(str) {
+      if (!str) return [];
+      const segments = str.split('|');
+      const found = [];
+      segments.forEach(seg => {
+        const match = seg.match(/(https?:\/\/[^\s)）"']+)/);
+        if (match) {
+          const url = match[1];
+          let label = seg.replace(url, '').replace(/[:：/／()（）]/g, '').trim();
+          if (!label || label.length > 38) label = '参考リンクを開く';
+          found.push({ label, url });
+        }
+      });
+      return found;
+    }
+
+    // 3. Leaflet マップ初期化（デフォルト：地理院地図 標準地図 ＋ オーバーレイ：CS立体図 透過50%）
+    const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+      maxNativeZoom: 18,
+      maxZoom: 19,
+      attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>'
+    });
+    const gsiPale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+      maxNativeZoom: 18,
+      maxZoom: 19,
+      attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル（淡色地図）</a>'
+    });
+    // 1) 地理院地図 航空写真（能登半島地震 発生前：電子国土基本図オルソ 2010年撮影＋2020・2022年年度別空中写真）
+    // ※ seamlessphoto は2024年撮影の震災後オルソに更新されているため、確実に震災前の ort / nendophoto を使用
+    const gsiPhotoPreBase = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/ort/{z}/{x}/{y}.jpg', {
+      maxNativeZoom: 18,
+      maxZoom: 19,
+      attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル（電子国土基本図オルソ・2010年/2020-2022年撮影）</a>'
+    });
+    const gsiPhotoPre2010 = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/nendophoto2010/{z}/{x}/{y}.png', {
+      minZoom: 14,
+      maxNativeZoom: 18,
+      maxZoom: 19
+    });
+    const gsiPhotoPre2020 = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/nendophoto2020/{z}/{x}/{y}.png', {
+      minZoom: 14,
+      maxNativeZoom: 18,
+      maxZoom: 19
+    });
+    const gsiPhotoPre2022 = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/nendophoto2022/{z}/{x}/{y}.png', {
+      minZoom: 14,
+      maxNativeZoom: 18,
+      maxZoom: 19
+    });
+    const gsiPhotoPre = L.layerGroup([
+      gsiPhotoPreBase,
+      gsiPhotoPre2010,
+      gsiPhotoPre2020,
+      gsiPhotoPre2022
+    ]);
+
+    // 2) 地理院地図 航空写真（能登半島地震 発生後：2024年4月〜2025年 最新シームレス＆正射画像）
+    const gsiPhotoLatestBase = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', {
+      maxNativeZoom: 18,
+      maxZoom: 19,
+      attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル（全国最新写真シームレス・2024年4月以降最新正射画像）</a>'
+    });
+    const gsiPhotoPostApr = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/20240102noto_0405_0426do/{z}/{x}/{y}.png', {
+      minZoom: 10,
+      maxNativeZoom: 18,
+      maxZoom: 19
+    });
+    const gsiPhoto2024Nendo = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/nendophoto2024/{z}/{x}/{y}.png', {
+      minZoom: 14,
+      maxNativeZoom: 18,
+      maxZoom: 19
+    });
+    const gsiPhoto2025Nendo = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/nendophoto2025/{z}/{x}/{y}.png', {
+      minZoom: 14,
+      maxNativeZoom: 18,
+      maxZoom: 19
+    });
+    const gsiPhotoPostLatest = L.layerGroup([
+      gsiPhotoLatestBase,
+      gsiPhotoPostApr,
+      gsiPhoto2024Nendo,
+      gsiPhoto2025Nendo
+    ]);
+
+    // 3) 地理院地図 航空写真（1970年代：1974〜1978年撮影 国土画像情報 第一期 gazo1）
+    const gsiPhoto1970sFallback = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/ort/{z}/{x}/{y}.jpg', {
+      maxNativeZoom: 18,
+      maxZoom: 19
+    });
+    const gsiPhoto1970sTile = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/gazo1/{z}/{x}/{y}.jpg', {
+      minZoom: 10,
+      maxNativeZoom: 17,
+      maxZoom: 19,
+      attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル（1974〜1978年撮影 国土画像情報 第一期）</a>'
+    });
+    const gsiPhoto1970s = L.layerGroup([
+      gsiPhoto1970sFallback,
+      gsiPhoto1970sTile
+    ]);
+
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    });
+
+    // 石川県・能登 CS立体図（透過度 50% オーバーレイ）
+    const csMapNoto = L.tileLayer('https://www2.ffpri.go.jp/soilmap/tile/cs_noto/{z}/{x}/{y}.png', {
+      opacity: 0.5,
+      minZoom: 6,
+      maxNativeZoom: 17,
+      maxZoom: 19,
+      zIndex: 10,
+      attribution: '<a href="https://www2.ffpri.go.jp/soilmap/" target="_blank">森林総研・石川県CS立体図</a>'
+    });
+
+    // 環境省 生物多様性センター 現存植生図（透過度 50% オーバーレイ）
+    const envVegMap = L.tileLayer('https://www.biodic.go.jp/kiso/vg/tile/veg2024raster/{z}/{x}/{y}.png', {
+      opacity: 0.5,
+      minZoom: 5,
+      maxNativeZoom: 15,
+      maxZoom: 19,
+      zIndex: 11,
+      attribution: '<a href="https://www.biodic.go.jp/kiso/vg/vg_kiso.html" target="_blank">環境省 生物多様性センター 現存植生図</a>'
+    });
+
+    const map = L.map('map', {
+      center: [37.115, 136.885],
+      zoom: 12,
+      layers: [gsiStd],
+      zoomAnimation: true,
+      fadeAnimation: true,
+      markerZoomAnimation: true
+    });
+
+    const baseMaps = {
+      "地理院地図（標準・地形図）": gsiStd,
+      "地理院地図（淡色地図）": gsiPale,
+      "航空写真（1974〜1978年：昭和50年代頃）": gsiPhoto1970s,
+      "航空写真（能登半島地震 発生前：2010〜2022年撮影）": gsiPhotoPre,
+      "航空写真（能登半島地震 発生後：2024年4月以降〜最新）": gsiPhotoPostLatest,
+      "OpenStreetMap": osm
+    };
+
+    const overlayMaps = {
+      "🗻 CS立体図（透過度50%）": csMapNoto,
+      "🌿 環境省 現存植生図（透過度50%）": envVegMap
+    };
+
+    let photoPinsLayer = L.layerGroup().addTo(map);
+    overlayMaps["📷 撮影した写真ピン"] = photoPinsLayer;
+
+    L.control.layers(baseMaps, overlayMaps, { position: 'topright', collapsed: true }).addTo(map);
+
+    let markersLayer = L.layerGroup().addTo(map);
+    let routeLine = null;
+    let currentItems = [];
+    let visibleNos = [];
+    let activeNo = null;
+    let markerMap = {};
+    let photoPins = [];
+    let photoMarkerMap = {};
+    const PHOTO_STORAGE_KEY = 'fukamachi_lab_photo_pins_v1';
+
+    // 4. 情報パネル折りたたみ制御 ＆ 英語表示切り替え
+    let isEnglish = false;
+
+    const EN_STOP_DATA = {
+      "1": {
+        title: "Breakfast & Departure Prep at Wakura Onsen Hanagoyomi",
+        cat: "Meal / Prep",
+        place: "Wakura Onsen Hanagoyomi",
+        address: "Yo-91-1 Wakura-machi, Nanao, Ishikawa",
+        detail: "08:00-08:35 Breakfast & final check for cold/rain gear / 08:35-09:06 Check-out & gather at lobby"
+      },
+      "2": {
+        title: "Move to Wakura Onsen Station (via Wakura Kanko Kaikan-mae Bus Stop)",
+        cat: "Transit",
+        place: "Wakura Kanko Kaikan-mae Bus Stop (Wakura Onsen Festival Museum)",
+        address: "2-13-1 Wakura-machi, Nanao, Ishikawa",
+        detail: "09:06 Walk from Hanagoyomi to bus stop (approx. 4 min) / 09:10 Board Notojima Kotsu Bus / 09:14 Arrive at Wakura Onsen Sta."
+      },
+      "3": {
+        title: "Meet at Wakura Onsen Station ⇒ Train to Nishigishi Station",
+        cat: "Meet / Transit",
+        place: "Wakura Onsen Station",
+        address: "O-bu Ishizaki-machi, Nanao, Ishikawa",
+        detail: "09:15 All members meet at Wakura Onsen Sta. & buy tickets / 09:30 Board Noto Railway Nanao Line (bound for Anamizu) to Nishigishi Sta."
+      },
+      "4": {
+        title: "Arrive at Nishigishi Station ⇒ Walk to atelier morinoto",
+        cat: "Arrival / Walk",
+        place: "Nishigishi Station",
+        address: "Sode, Nakajima-machi, Nanao, Ishikawa",
+        detail: "09:52 Arrive at Nishigishi Sta., then walk to atelier morinoto (approx. 7-8 min)"
+      },
+      "5": {
+        title: "Visit & Tour: atelier morinoto",
+        cat: "Visit ①",
+        place: "atelier morinoto",
+        address: "Na-9 Sode, Nakajima-machi, Nanao, Ishikawa",
+        detail: "[Stop 1] Tour the renovated traditional house hub designed by architect Kazuaki Morino"
+      },
+      "6": {
+        title: "Satoyama Fieldwork",
+        cat: "Fieldwork",
+        place: "Sode District, Nakajima-machi, Nanao",
+        address: "Sode, Nakajima-machi, Nanao, Ishikawa",
+        detail: "[Area Walk] Walk through village landscapes and hillside forests in Sode District to observe Ate (Noto Hiba / Thujopsis dolabrata)"
+      },
+      "7": {
+        title: "Lunch at Stay + Cafe Youho",
+        cat: "Lunch",
+        place: "Stay + Cafe Youho (泊＋カフェ遊帆)",
+        address: "I-21-2 Sode, Nakajima-machi, Nanao, Ishikawa",
+        detail: "Enjoy Thai cuisine and specialty sprouted enzyme brown rice"
+      },
+      "8": {
+        title: "Visit: Miyamoto Suisan Co., Ltd.",
+        cat: "Visit ②",
+        place: "Miyamoto Suisan Co., Ltd.",
+        address: "I-29 Sode, Nakajima-machi, Nanao, Ishikawa",
+        detail: "[Stop 2] Hear from Mr. Soichiro Miyamoto about Noto oyster farming, fisheries, and the use of Ate (Noto Hiba) timber"
+      },
+      "9": {
+        title: "Walk to Nishigishi Station & Wait for Train",
+        cat: "Transit / Wait",
+        place: "Nishigishi Station",
+        address: "Sode, Nakajima-machi, Nanao, Ishikawa",
+        detail: "Walk from Miyamoto Suisan to Nishigishi Sta. (approx. 3 min), break & station building observation"
+      },
+      "10": {
+        title: "Nishigishi Station ⇒ Noto-Nakajima Station",
+        cat: "Transit",
+        place: "Noto-Nakajima Station",
+        address: "Hamada, Nakajima-machi, Nanao, Ishikawa",
+        detail: "Board Noto Railway Nanao Line (14:35 bound for Nanao) to the next stop, Noto-Nakajima Station (14:42 arrival)"
+      },
+      "11": {
+        title: "Walk to & Visit Nakajima Mokuzai Kogyo (Lumber Mill)",
+        cat: "Visit ③",
+        place: "Nakajima Mokuzai Kogyo Co., Ltd.",
+        address: "Otsu-161 Nakajima, Nakajima-machi, Nanao, Ishikawa",
+        detail: "14:42 Walk north approx. 700m (10 min) from Noto-Nakajima Sta. / 14:55-15:35 [Stop 3] Learn about milling Ate (Noto Hiba) and its characteristics"
+      },
+      "12": {
+        title: "Visit & Hearing: Yamaguchi Suisan Co., Ltd.",
+        cat: "Visit ④",
+        place: "Yamaguchi Suisan Co., Ltd.",
+        address: "Ra-26 Hamada, Nakajima-machi, Nanao, Ishikawa",
+        detail: "[Stop 4] 2-min walk from Nakajima Mokuzai. Hear from relocated staff from outside the prefecture about life and work in Noto"
+      },
+      "13": {
+        title: "Walk to Noto-Nakajima Station",
+        cat: "Transit",
+        place: "Noto-Nakajima Station",
+        address: "Hamada, Nakajima-machi, Nanao, Ishikawa",
+        detail: "Walk from Yamaguchi Suisan area back to Noto-Nakajima Station (approx. 10 min)"
+      },
+      "14": {
+        title: "Noto-Nakajima Station ⇒ Wakura Onsen Station",
+        cat: "Transit",
+        place: "Wakura Onsen Station",
+        address: "O-bu Ishizaki-machi, Nanao, Ishikawa",
+        detail: "Board Noto Railway Nanao Line (16:28 bound for Nanao) back to Wakura Onsen Station (16:43 arrival)"
+      },
+      "15": {
+        title: "Return from Wakura Onsen Station to Inn (Hanagoyomi) & Dismiss",
+        cat: "Arrival",
+        place: "Wakura Onsen Hanagoyomi",
+        address: "Yo-91-1 Wakura-machi, Nanao, Ishikawa",
+        detail: "(1) Inn shuttle bus at 16:45 ⇒ 17:00 arrive at Hanagoyomi, or (2) Route bus at 17:35 (Notojima Kotsu) ⇒ 17:39 Wakura Kanko Kaikan-mae ⇒ 4-min walk, 17:45 arrive at Hanagoyomi"
+      }
+    };
+
+    function getDisplayItem(item) {
+      if (!isEnglish) return item;
+      const en = EN_STOP_DATA[String(item.no)];
+      if (!en) return item;
+      return {
+        ...item,
+        time: item.time.replace(/発/g, ' dep.').replace(/着/g, ' arr.').replace(/（送迎なら17:00）/g, ' (17:00 via shuttle)'),
+        title: en.title,
+        cat: en.cat,
+        place: en.place,
+        address: en.address,
+        detail: en.detail
+      };
+    }
+
+    const infoPanel = document.getElementById('infoPanel');
+    const panelToggleBar = document.getElementById('panelToggleBar');
+    const panelToggleBadge = document.getElementById('panelToggleBadge');
+
+    const memoPanel = document.getElementById('memoPanel');
+    const memoPanelToggleBar = document.getElementById('memoPanelToggleBar');
+    const memoPanelToggleBadge = document.getElementById('memoPanelToggleBadge');
+
+    function updateUIText() {
+      const isCollapsed = infoPanel.classList.contains('collapsed');
+      const isMemoCollapsed = memoPanel.classList.contains('collapsed');
+      document.documentElement.lang = isEnglish ? 'en' : 'ja';
+      document.getElementById('headerTitleText').textContent = isEnglish
+        ? '🌲 Kyoto Univ. Fukamachi Lab Fieldwork Map (Dec 4)'
+        : '🌲 京大・深町研究室 ゼミ旅行マップ (12/4)';
+      document.getElementById('headerSubText').textContent = isEnglish
+        ? 'Noto / Nakajima-machi, Nanao (Nishigishi, Noto-Nakajima & Wakura Onsen)'
+        : '能登・七尾市中島町（西岸・能登中島・和倉温泉）';
+      document.getElementById('langToggleBtn').textContent = isEnglish ? '🌐 日本語' : '🌐 English';
+      document.getElementById('nowStopBtn').textContent = isEnglish ? '🕒 Current Stop' : '🕒 現在時刻の地点';
+      document.getElementById('fitBoundsBtn').textContent = isEnglish ? '🗺️ Fit All' : '🗺️ 全体表示';
+      document.getElementById('locateBtn').textContent = isEnglish ? '📍 My Location' : '📍 現在地';
+      document.getElementById('mapCameraFabText').textContent = isEnglish ? 'Photo Memo' : '写真メモ撮影';
+
+      document.getElementById('prevStepBtn').textContent = isEnglish ? '◀ Prev' : '◀ 前へ';
+      document.getElementById('nextStepBtn').textContent = isEnglish ? 'Next ▶' : '次へ ▶';
+
+      document.getElementById('memoPanelToggleTitleText').textContent = isEnglish
+        ? `📷 Photo Memos (${photoPins.length})`
+        : `📷 写真メモ一覧 (${photoPins.length})`;
+      memoPanelToggleBadge.textContent = isEnglish
+        ? (isMemoCollapsed ? '▼ Expand' : '▲ Collapse')
+        : (isMemoCollapsed ? '▼ 展開する' : '▲ 折りたたむ');
+
+      document.getElementById('shareAllJsonBtn').textContent = isEnglish ? '📤 Share JSON' : '📤 JSON形式で共有';
+      document.getElementById('shareAllKmzBtn').textContent = isEnglish ? '🌍 Share KMZ' : '🌍 KMZ形式で共有';
+      document.getElementById('importMemoLabel').textContent = isEnglish ? '📥 Import Memos' : '📥 メモ読込';
+      document.getElementById('clearAllMemosBtn').textContent = isEnglish ? '🗑️ Clear All' : '🗑️ 全削除';
+
+      document.getElementById('panelToggleTitleText').textContent = isEnglish
+        ? '📋 Timetable & Info Panel (No.1-15)'
+        : '📋 タイムテーブル・情報パネル (No.1〜15)';
+      panelToggleBadge.textContent = isEnglish
+        ? (isCollapsed ? '▲ Expand' : '▼ Collapse')
+        : (isCollapsed ? '▲ 展開する' : '▼ 折りたたむ');
+
+      document.getElementById('filterAllBtn').textContent = isEnglish ? 'All' : 'すべて';
+      document.getElementById('filterVisitBtn').textContent = isEnglish ? 'Visits & Walk' : '見学・散策';
+      document.getElementById('filterFoodBtn').textContent = isEnglish ? 'Meals' : '食事';
+      document.getElementById('filterMoveBtn').textContent = isEnglish ? 'Transit' : '移動';
+      document.getElementById('filterPhotoBtn').textContent = isEnglish ? `📷 Photo Memos (${photoPins.length})` : `📷 写真メモ (${photoPins.length})`;
+      renderPhotoPins();
+    }
+
+    function triggerBrowserGoogleTranslate(toEn) {
+      try {
+        document.cookie = toEn ? 'googtrans=/ja/en; path=/' : 'googtrans=/ja/ja; path=/';
+        const combo = document.querySelector('.goog-te-combo');
+        if (combo) {
+          combo.value = toEn ? 'en' : 'ja';
+          combo.dispatchEvent(new Event('change'));
+        }
+      } catch (e) {}
+    }
+
+    document.getElementById('langToggleBtn').addEventListener('click', () => {
+      isEnglish = !isEnglish;
+      updateUIText();
+      triggerBrowserGoogleTranslate(isEnglish);
+      renderData(currentItems, currentFilter);
+      if (activeNo) {
+        highlightCard(activeNo);
+        updateStepLabel(activeNo);
+      }
+    });
+
+    function togglePanel(forceState) {
+      const isCollapsed = typeof forceState === 'boolean'
+        ? forceState
+        : !infoPanel.classList.contains('collapsed');
+
+      infoPanel.classList.toggle('collapsed', isCollapsed);
+      updateUIText();
+
+      setTimeout(() => {
+        map.invalidateSize({ animate: true });
+      }, 300);
+    }
+
+    function toggleMemoPanel(forceState) {
+      const isCollapsed = typeof forceState === 'boolean'
+        ? forceState
+        : !memoPanel.classList.contains('collapsed');
+
+      memoPanel.classList.toggle('collapsed', isCollapsed);
+      updateUIText();
+
+      setTimeout(() => {
+        map.invalidateSize({ animate: true });
+      }, 300);
+    }
+
+    panelToggleBar.addEventListener('click', () => togglePanel());
+    memoPanelToggleBar.addEventListener('click', () => toggleMemoPanel());
+
+    const currentStepLabel = document.getElementById('currentStepLabel');
+
+    function updateStepLabel(no) {
+      const m = markerMap[String(no)];
+      if (m && m.item && currentStepLabel) {
+        const disp = getDisplayItem(m.item);
+        currentStepLabel.textContent = `No.${disp.no} ${disp.title}`;
+      }
+    }
+
+    currentStepLabel.addEventListener('click', () => {
+      if (activeNo) focusStop(activeNo);
+    });
+
+    // 5. 滑らかなフライ移動アニメーション (flyTo)
+    function focusStop(no) {
+      activeNo = String(no);
+      highlightCard(activeNo);
+      updateStepLabel(activeNo);
+      const m = markerMap[activeNo];
+      if (!m) return;
+
+      map.closePopup();
+      map.flyTo(m.marker.getLatLng(), 16, {
+        animate: true,
+        duration: 1.4,
+        easeLinearity: 0.25
+      });
+
+      map.once('moveend', () => {
+        m.marker.openPopup();
+      });
+    }
+
+    function goPrevStep() {
+      if (!visibleNos.length) return;
+      const idx = visibleNos.indexOf(String(activeNo));
+      const nextIdx = idx <= 0 ? visibleNos.length - 1 : idx - 1;
+      focusStop(visibleNos[nextIdx]);
+    }
+
+    function goNextStep() {
+      if (!visibleNos.length) return;
+      const idx = visibleNos.indexOf(String(activeNo));
+      const nextIdx = idx < 0 || idx >= visibleNos.length - 1 ? 0 : idx + 1;
+      focusStop(visibleNos[nextIdx]);
+    }
+
+    document.getElementById('prevStepBtn').addEventListener('click', goPrevStep);
+    document.getElementById('nextStepBtn').addEventListener('click', goNextStep);
+
+    function getFilterGroup(cat) {
+      if (cat.startsWith('見学') || cat === '散策') return 'visit';
+      if (cat === '昼食' || cat === '食事') return 'food';
+      return 'move';
+    }
+
+    let currentFilter = 'all';
+
+    // 能登半島地震発生前（2023年以前）のGoogleストリートビューが登録されているチェックポイント
+    const PRE_EQ_STREETVIEW_STOPS = {
+      "1": {
+        lat: 37.0878697,
+        lng: 136.9160976,
+        resolvedUrl: "https://www.google.com/maps/@37.0878697,136.9160976,5a,75y,300.99h,88.34t/data=!3m8!1e1!3m6!1s7tQwUh9UzTmQzhB3fqj3ig!2e0!5s20230801T000000!6shttps:%2F%2Fstreetviewpixels-pa.clients6.google.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D1.6636181454616548%26panoid%3D7tQwUh9UzTmQzhB3fqj3ig%26yaw%3D300.99462004298374!7i16384!8i8192?entry=ttu&g_ep=EgoyMDI2MTExMC4wIKXMDSoASAFQAw%3D%3D",
+        fixed: true
+      },
+      "2":  { lat: 37.0866, lng: 136.9187 },
+      "3":  { lat: 37.0749, lng: 136.9254 },
+      "4":  { lat: 37.1475, lng: 136.8743 },
+      "5": {
+        lat: 37.1512918,
+        lng: 136.8790603,
+        resolvedUrl: "https://www.google.com/maps/@37.1512918,136.8790603,5a,75y,304.46h,100.3t/data=!3m8!1e1!3m6!1syRVOQUrfsuBzlsM1nUML8g!2e0!5s20231001T000000!6shttps:%2F%2Fstreetviewpixels-pa.clients6.google.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D-10.297441133747895%26panoid%3DyRVOQUrfsuBzlsM1nUML8g%26yaw%3D304.4626564536022!7i16384!8i8192?entry=ttu&g_ep=EgoyMDI2MTExMC4wIKXMDSoASAFQAw%3D%3D",
+        fixed: true
+      },
+      "6": {
+        lat: 37.1495287,
+        lng: 136.8734875,
+        resolvedUrl: "https://www.google.com/maps/@37.1495287,136.8734875,14a,75y,114.94h,89.42t/data=!3m8!1e1!3m6!1sw23uPfnLG8KwUAONg5UriQ!2e0!5s20230801T000000!6shttps:%2F%2Fstreetviewpixels-pa.clients6.google.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D0.579641099491468%26panoid%3Dw23uPfnLG8KwUAONg5UriQ%26yaw%3D114.94204074448747!7i16384!8i8192?entry=ttu&g_ep=EgoyMDI2MTExMC4wIKXMDSoASAFQAw%3D%3D",
+        fixed: true
+      },
+      "7":  { lat: 37.1466, lng: 136.8749 },
+      "8": {
+        lat: 37.1463355,
+        lng: 136.8752221,
+        resolvedUrl: "https://www.google.com/maps/@37.1463355,136.8752221,4a,75y,90t/data=!3m8!1e1!3m6!1sUz_GmIODlNdRKe7kJlIqmg!2e0!5s20231001T000000!6shttps:%2F%2Fstreetviewpixels-pa.clients6.google.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D0%26panoid%3DUz_GmIODlNdRKe7kJlIqmg%26yaw%3D0!7i16384!8i8192?entry=ttu&g_ep=EgoyMDI2MTExMC4wIKXMDSoASAFQAw%3D%3D",
+        fixed: true
+      },
+      "9":  { lat: 37.1475, lng: 136.8743 },
+      "10": { lat: 37.1091, lng: 136.8533 },
+      "11": {
+        lat: 37.1154168,
+        lng: 136.8527794,
+        resolvedUrl: "https://www.google.com/maps/@37.1154168,136.8527794,4a,75y,120.77h,85.93t/data=!3m8!1e1!3m6!1sYWOfGCVKZCq4dU4_A0QCDg!2e0!5s20231001T000000!6shttps:%2F%2Fstreetviewpixels-pa.clients6.google.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D4.0720443202949355%26panoid%3DYWOfGCVKZCq4dU4_A0QCDg%26yaw%3D120.77207077999566!7i16384!8i8192?entry=ttu&g_ep=EgoyMDI2MTExMC4wIKXMDSoASAFQAw%3D%3D",
+        fixed: true
+      },
+      "12": { lat: 37.1146, lng: 136.8520 },
+      "13": { lat: 37.1091, lng: 136.8533 },
+      "14": { lat: 37.0749, lng: 136.9254 },
+      "15": {
+        lat: 37.0878697,
+        lng: 136.9160976,
+        resolvedUrl: "https://www.google.com/maps/@37.0878697,136.9160976,5a,75y,300.99h,88.34t/data=!3m8!1e1!3m6!1s7tQwUh9UzTmQzhB3fqj3ig!2e0!5s20230801T000000!6shttps:%2F%2Fstreetviewpixels-pa.clients6.google.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D1.6636181454616548%26panoid%3D7tQwUh9UzTmQzhB3fqj3ig%26yaw%3D300.99462004298374!7i16384!8i8192?entry=ttu&g_ep=EgoyMDI2MTExMC4wIKXMDSoASAFQAw%3D%3D",
+        fixed: true
+      }
+    };
+
+    // Google GeoPhotoService (JSONP) から2023年以前（震災前）のパノラマID（panoId）を自動取得してキャッシュ
+    const preEqPanoCache = {};
+
+    function extractPre2024PanoFromNode(node) {
+      let candidates = [];
+
+      // 1. GeoPhotoService.SingleImageSearch の標準構造から取得
+      try {
+        const meta = node?.[1]?.[0];
+        if (meta) {
+          // メインパノラマ自体の撮影年月をチェック
+          const primaryPanoId = meta?.[1]?.[1];
+          const primaryDate = meta?.[6]?.[7];
+          if (
+            typeof primaryPanoId === 'string' &&
+            primaryPanoId.length === 22 &&
+            Array.isArray(primaryDate) &&
+            typeof primaryDate[0] === 'number' &&
+            primaryDate[0] <= 2023
+          ) {
+            candidates.push({
+              panoId: primaryPanoId,
+              year: primaryDate[0],
+              month: primaryDate[1] || 1
+            });
+          }
+
+          // タイムマシン（過去撮影履歴）リストをチェック
+          const panoStubs = meta?.[5]?.[0]?.[3]?.[0];
+          const dateRefs = meta?.[5]?.[0]?.[8];
+          if (Array.isArray(panoStubs) && Array.isArray(dateRefs)) {
+            dateRefs.forEach(ref => {
+              const stubIdx = ref?.[0];
+              const ym = ref?.[1];
+              if (
+                typeof stubIdx === 'number' &&
+                Array.isArray(ym) &&
+                typeof ym[0] === 'number' &&
+                ym[0] <= 2023
+              ) {
+                const stub = panoStubs?.[stubIdx];
+                let panoId = stub?.[0]?.[1];
+                if (typeof panoId !== 'string' || panoId.length !== 22) {
+                  // stub内を再帰的に探して22文字のpanoIdを抽出
+                  const findId = (a) => {
+                    if (!Array.isArray(a)) return null;
+                    for (const item of a) {
+                      if (typeof item === 'string' && /^[A-Za-z0-9_-]{22}$/.test(item)) return item;
+                      if (Array.isArray(item)) {
+                        const r = findId(item);
+                        if (r) return r;
+                      }
+                    }
+                    return null;
+                  };
+                  panoId = findId(stub);
+                }
+                if (typeof panoId === 'string' && panoId.length === 22) {
+                  candidates.push({
+                    panoId,
+                    year: ym[0],
+                    month: ym[1] || 1
+                  });
+                }
+              }
+            });
+          }
+        }
+      } catch (e) {}
+
+      // 2. フォールバック：ツリー構造を再帰走査して22文字のpanoIdと[year, month]の組を探索
+      function walk(arr) {
+        if (!Array.isArray(arr)) return;
+        let panosInArr = [];
+        let yearInArr = null;
+        let monthInArr = 1;
+
+        for (let i = 0; i < arr.length; i++) {
+          const el = arr[i];
+          if (typeof el === 'string' && /^[A-Za-z0-9_-]{22}$/.test(el)) {
+            panosInArr.push(el);
+          } else if (Array.isArray(el)) {
+            if (
+              el.length >= 2 &&
+              typeof el[0] === 'number' &&
+              el[0] >= 2007 &&
+              el[0] <= 2030 &&
+              typeof el[1] === 'number' &&
+              el[1] >= 1 &&
+              el[1] <= 12
+            ) {
+              yearInArr = el[0];
+              monthInArr = el[1];
+            }
+          }
+        }
+
+        if (panosInArr.length > 0 && yearInArr !== null && yearInArr <= 2023) {
+          candidates.push({ panoId: panosInArr[0], year: yearInArr, month: monthInArr });
+        }
+
+        for (let i = 0; i < arr.length; i++) {
+          if (Array.isArray(arr[i])) walk(arr[i]);
+        }
+      }
+
+      if (candidates.length === 0) {
+        walk(node);
+      }
+
+      if (candidates.length > 0) {
+        // 2023年以前で最も新しい（震災直前に近い）パノラマを優先選択
+        candidates.sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month));
+        return candidates[0];
+      }
+      return null;
+    }
+
+    function buildGoogleMapsPreEqUrl(lat, lng, panoId, year, month) {
+      const ymStr = `${year || 2023}${String(month || 8).padStart(2, '0')}01T000000`;
+      return `https://www.google.com/maps/@${lat},${lng},3a,75y,0h,90t/data=!3m7!1e1!3m5!1s${panoId}!2e0!5s${ymStr}!7i16384!8i8192`;
+    }
+
+    function fetchPre2024PanoForCoord(key, lat, lng, radius = 85) {
+      return new Promise((resolve) => {
+        if (preEqPanoCache[key]) {
+          resolve(preEqPanoCache[key]);
+          return;
+        }
+        const cbName = '_svcb_' + Math.random().toString(36).slice(2, 9);
+        const script = document.createElement('script');
+        const timer = setTimeout(() => {
+          cleanup();
+          resolve(null);
+        }, 4000);
+
+        function cleanup() {
+          clearTimeout(timer);
+          try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+
+        window[cbName] = function(data) {
+          cleanup();
+          try {
+            const found = extractPre2024PanoFromNode(data);
+            if (found && found.panoId) {
+              const url = buildGoogleMapsPreEqUrl(lat, lng, found.panoId, found.year, found.month);
+              const result = { ...found, url };
+              preEqPanoCache[key] = result;
+              resolve(result);
+              return;
+            }
+          } catch (e) {}
+          resolve(null);
+        };
+
+        const pb = `!1m5!1sapiv3!5sJP!11m2!1m1!1b0!2m4!1m2!3d${lat}!4d${lng}!2d${radius}!3m10!2m2!1sja!2sJP!9m1!1e2!11m4!1m3!1e2!2b1!3e2!4m10!1e1!1e2!1e3!1e4!1e8!1e6!5m1!1e2!6m1!1e2`;
+        script.src = `https://maps.googleapis.com/maps/api/js/GeoPhotoService.SingleImageSearch?pb=${pb}&callback=${cbName}`;
+        script.onerror = () => {
+          cleanup();
+          resolve(null);
+        };
+        document.body.appendChild(script);
+      });
+    }
+
+    async function preloadAllPreEqStreetViews() {
+      const uniqueCoords = {};
+      Object.keys(PRE_EQ_STREETVIEW_STOPS).forEach(no => {
+        if (PRE_EQ_STREETVIEW_STOPS[no].fixed) return;
+        const { lat, lng } = PRE_EQ_STREETVIEW_STOPS[no];
+        const cKey = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+        if (!uniqueCoords[cKey]) uniqueCoords[cKey] = { lat, lng, nos: [] };
+        uniqueCoords[cKey].nos.push(no);
+      });
+
+      await Promise.all(Object.keys(uniqueCoords).map(async (cKey) => {
+        const { lat, lng, nos } = uniqueCoords[cKey];
+        let res = await fetchPre2024PanoForCoord(cKey, lat, lng, 85);
+        if (!res) {
+          res = await fetchPre2024PanoForCoord(cKey + '_r220', lat, lng, 220);
+        }
+        if (res && res.url) {
+          nos.forEach(no => {
+            PRE_EQ_STREETVIEW_STOPS[no].resolvedUrl = res.url;
+            PRE_EQ_STREETVIEW_STOPS[no].resolvedYear = res.year;
+            PRE_EQ_STREETVIEW_STOPS[no].resolvedMonth = res.month;
+            const m = markerMap[String(no)];
+            if (m && m.marker && m.marker.getPopup()) {
+              const oldContent = m.marker.getPopup().getContent();
+              if (typeof oldContent === 'string') {
+                const updated = oldContent.replace(
+                  /(<a[^>]*class="link-pill sv"[^>]*href=")[^"]*(")/,
+                  `$1${res.url}$2`
+                );
+                m.marker.setPopupContent(updated);
+              }
+            }
+          });
+          document.querySelectorAll(`a.sv[data-sv-no]`).forEach(a => {
+            const no = a.getAttribute('data-sv-no');
+            if (nos.includes(no)) {
+              a.href = res.url;
+            }
+          });
+        }
+      }));
+    }
+
+    function getPreEqStreetViewLink(no) {
+      const sv = PRE_EQ_STREETVIEW_STOPS[String(no)];
+      if (!sv) return null;
+      const url = sv.resolvedUrl || `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${sv.lat},${sv.lng}`;
+      const label = isEnglish ? 'Pre-EQ Street View' : '震災前ストリートビュー';
+      const tip = isEnglish
+        ? 'Open pre-earthquake (2023 or earlier) Google Street View'
+        : '2023年以前（能登半島地震発生前）のGoogleストリートビューを開く';
+      return { url, label, tip, no: String(no) };
+    }
+
+    window.handleStreetViewClick = function(ev, no) {
+      const sv = PRE_EQ_STREETVIEW_STOPS[String(no)];
+      if (!sv) return true;
+      if (sv.resolvedUrl) {
+        ev.currentTarget.href = sv.resolvedUrl;
+        return true;
+      }
+      ev.preventDefault();
+      const win = window.open('about:blank', '_blank');
+      const cKey = `${sv.lat.toFixed(5)},${sv.lng.toFixed(5)}`;
+      fetchPre2024PanoForCoord(cKey, sv.lat, sv.lng, 85).then(async (res) => {
+        if (!res) {
+          res = await fetchPre2024PanoForCoord(cKey + '_r220', sv.lat, sv.lng, 220);
+        }
+        const targetUrl = (res && res.url)
+          ? res.url
+          : `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${sv.lat},${sv.lng}`;
+        if (res && res.url) {
+          sv.resolvedUrl = res.url;
+        }
+        if (win) win.location.href = targetUrl;
+      });
+      return false;
+    };
+
+    function getNowMins() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('time')) {
+        const parsed = timeStrToMins(params.get('time'));
+        if (parsed !== null) return parsed;
+      }
+      const now = new Date();
+      return now.getHours() * 60 + now.getMinutes();
+    }
+
+    function renderData(items, filter = currentFilter) {
+      currentFilter = filter;
+      markersLayer.clearLayers();
+      if (routeLine) map.removeLayer(routeLine);
+      markerMap = {};
+      visibleNos = [];
+
+      const timelineEl = document.getElementById('timeline');
+      timelineEl.innerHTML = '';
+
+      const latlngs = [];
+      const coordCount = {};
+      const nowMins = getNowMins();
+      const scheduledNo = getScheduledNoForNow(items);
+
+      items.forEach((item) => {
+        const group = getFilterGroup(item.cat);
+        if (filter !== 'all' && group !== filter) return;
+        visibleNos.push(String(item.no));
+
+        const disp = getDisplayItem(item);
+        const isPast = item.endMins !== null && nowMins > item.endMins;
+        const isCurrentNow = String(item.no) === String(scheduledNo) && !isPast;
+        const doneLabel = isEnglish ? '✓ Done' : '✓ 終了';
+        const nowLabel = isEnglish ? '🕒 Current Stop' : '🕒 現在時刻の予定';
+        const svInfo = getPreEqStreetViewLink(item.no);
+
+        if (!isNaN(item.lat) && !isNaN(item.lng)) {
+          const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
+          const count = coordCount[key] || 0;
+          coordCount[key] = count + 1;
+          const angle = count * 1.1;
+          const offsetLat = count === 0 ? 0 : Math.cos(angle) * 0.00022 * count;
+          const offsetLng = count === 0 ? 0 : Math.sin(angle) * 0.00022 * count;
+
+          const pos = [item.lat + offsetLat, item.lng + offsetLng];
+          latlngs.push([item.lat, item.lng]);
+
+          const icon = L.divIcon({
+            className: `num-marker ${group}${isPast ? ' past' : ''}`,
+            html: `<span>${item.no}</span>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+            popupAnchor: [0, -14]
+          });
+
+          const linksHtml = item.links.map(l =>
+            `<a class="link-pill" href="${l.url}" target="_blank" rel="noopener">🔗 ${l.label}</a>`
+          ).join(' ');
+          const svPopupHtml = svInfo
+            ? `<a class="link-pill sv" data-sv-no="${svInfo.no}" href="${svInfo.url}" target="_blank" rel="noopener" title="${svInfo.tip}" onclick="return handleStreetViewClick(event, '${svInfo.no}');">🚶 ${svInfo.label}</a>`
+            : '';
+          const gmapUrl = `https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}`;
+
+          const statusTag = isPast
+            ? `<span class="badge-status done">${doneLabel}</span>`
+            : (isCurrentNow ? `<span class="badge-status now">${nowLabel}</span>` : '');
+
+          const popupHtml = `
+            <div class="popup-title">No.${disp.no} ${disp.title} ${statusTag}</div>
+            <div style="font-weight:700;color:#455a64;margin-bottom:4px;">🕒 ${disp.time}</div>
+            ${disp.place ? `<div style="color:#607d8b;font-size:0.76rem;margin-bottom:4px;">📍 ${disp.place} ${disp.address ? `(${disp.address})` : ''}</div>` : ''}
+            <div style="margin-bottom:8px;">${disp.detail}</div>
+            <div class="card-links">
+              ${linksHtml}
+              ${svPopupHtml}
+              <a class="link-pill gmap" href="${gmapUrl}" target="_blank" rel="noopener">🧭 ${isEnglish ? 'Directions' : 'ここへナビ'}</a>
+            </div>
+          `;
+
+          const marker = L.marker(pos, { icon }).bindPopup(popupHtml).addTo(markersLayer);
+          markerMap[String(item.no)] = { marker, pos: [item.lat, item.lng], item, group };
+
+          marker.on('click', () => {
+            activeNo = String(item.no);
+            highlightCard(activeNo);
+            updateStepLabel(activeNo);
+          });
+        }
+
+        const card = document.createElement('div');
+        card.className = `card${isPast ? ' past' : ''}${activeNo === String(item.no) ? ' active' : ''}`;
+        card.id = `card-${item.no}`;
+        card.dataset.cat = item.cat;
+
+        const linksHtml = item.links.map(l =>
+          `<a class="link-pill" href="${l.url}" target="_blank" rel="noopener" onclick="event.stopPropagation();">🔗 ${l.label}</a>`
+        ).join('');
+        const svCardHtml = svInfo
+          ? `<a class="link-pill sv" data-sv-no="${svInfo.no}" href="${svInfo.url}" target="_blank" rel="noopener" title="${svInfo.tip}" onclick="event.stopPropagation(); return handleStreetViewClick(event, '${svInfo.no}');">🚶 ${svInfo.label}</a>`
+          : '';
+        const gmapUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
+
+        const statusBadge = isPast
+          ? `<span class="badge-status done" id="status-${item.no}">${doneLabel}</span>`
+          : (isCurrentNow
+              ? `<span class="badge-status now" id="status-${item.no}">${nowLabel}</span>`
+              : `<span id="status-${item.no}"></span>`);
+
+        card.innerHTML = `
+          <div class="card-header">
+            <span class="badge-no">${disp.no}</span>
+            <span class="time-range">${disp.time}</span>
+            ${statusBadge}
+            <span class="badge-cat">${disp.cat}</span>
+          </div>
+          <div class="card-title">${disp.title}</div>
+          ${disp.place ? `<div class="card-place">📍 ${disp.place}${disp.address ? `（${disp.address}）` : ''}</div>` : ''}
+          <div class="card-detail">${disp.detail}</div>
+          <div class="card-links">
+            ${linksHtml}
+            ${svCardHtml}
+            <a class="link-pill gmap" href="${gmapUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">🗺️ ${isEnglish ? 'Google Maps' : 'Googleマップ'}</a>
+          </div>
+        `;
+
+        card.addEventListener('click', () => {
+          focusStop(item.no);
+        });
+
+        timelineEl.appendChild(card);
+      });
+
+      if (latlngs.length > 1) {
+        routeLine = L.polyline(latlngs, {
+          color: '#00b0ff',
+          weight: 2,
+          opacity: 0.85,
+          dashArray: '4, 6'
+        }).addTo(map);
+      }
+
+      renderPhotoPins();
+    }
+
+    // 時刻経過に応じて随時グレーアウト表示を更新する
+    function refreshTimeStates() {
+      if (!currentItems.length) return;
+      const nowMins = getNowMins();
+      const scheduledNo = getScheduledNoForNow(currentItems);
+      const doneLabel = isEnglish ? '✓ Done' : '✓ 終了';
+      const nowLabel = isEnglish ? '🕒 Current Stop' : '🕒 現在時刻の予定';
+
+      currentItems.forEach(item => {
+        const isPast = item.endMins !== null && nowMins > item.endMins;
+        const isCurrentNow = String(item.no) === String(scheduledNo) && !isPast;
+
+        const card = document.getElementById(`card-${item.no}`);
+        if (card) {
+          card.classList.toggle('past', isPast);
+        }
+        const statusEl = document.getElementById(`status-${item.no}`);
+        if (statusEl) {
+          if (isPast) {
+            statusEl.className = 'badge-status done';
+            statusEl.textContent = doneLabel;
+          } else if (isCurrentNow) {
+            statusEl.className = 'badge-status now';
+            statusEl.textContent = nowLabel;
+          } else {
+            statusEl.className = '';
+            statusEl.textContent = '';
+          }
+        }
+        const m = markerMap[String(item.no)];
+        if (m && m.marker && m.marker.getElement()) {
+          m.marker.getElement().classList.toggle('past', isPast);
+        }
+      });
+    }
+
+    function highlightCard(no) {
+      document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+      const target = document.getElementById(`card-${no}`);
+      if (target) {
+        target.classList.add('active');
+        target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function jumpToCurrentScheduledStop() {
+      refreshTimeStates();
+      const targetNo = getScheduledNoForNow(currentItems);
+      if (targetNo) {
+        focusStop(targetNo);
+      }
+    }
+
+    document.getElementById('nowStopBtn').addEventListener('click', jumpToCurrentScheduledStop);
+
+    async function init() {
+      // 全15チェックポイントのデータはHTML内のDEFAULT_CSVに完全内蔵
+      currentItems = parseCSV(DEFAULT_CSV);
+      loadPhotoPins();
+      renderData(currentItems);
+      fitAllMarkers(false);
+      preloadAllPreEqStreetViews();
+
+      // ページを開いた時・リロード時に現在時刻のチェックポイントを自動表示
+      const initialNo = getScheduledNoForNow(currentItems);
+      if (initialNo && markerMap[initialNo]) {
+        setTimeout(() => {
+          focusStop(initialNo);
+        }, 350);
+      }
+
+      // 30秒ごとに現在時刻をチェックし、終了したチェックポイントを随時グレーアウト
+      setInterval(refreshTimeStates, 30000);
+    }
+
+    // ===== 6. 写真メモ（位置情報付き写真＋コメント作成・一覧表示・JSON / KMZ 共有）機能 =====
+    let pendingPhotoDataUrl = null;
+    let editingPhotoId = null;
+    const PHOTO_IDB_NAME = 'fukamachi_lab_photo_db_v1';
+    const PHOTO_IDB_STORE = 'photo_memos';
+    const PHOTO_IDB_KEY = 'latest_geojson';
+
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().catch(() => {});
+    }
+
+    function openPhotoIdb() {
+      return new Promise((resolve, reject) => {
+        if (!window.indexedDB) {
+          reject(new Error('IndexedDB unsupported'));
+          return;
+        }
+        const req = indexedDB.open(PHOTO_IDB_NAME, 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(PHOTO_IDB_STORE)) {
+            db.createObjectStore(PHOTO_IDB_STORE);
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function savePhotoPinsToIdb(geojsonObj) {
+      try {
+        const db = await openPhotoIdb();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction(PHOTO_IDB_STORE, 'readwrite');
+          tx.objectStore(PHOTO_IDB_STORE).put(geojsonObj, PHOTO_IDB_KEY);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+      } catch (e) {}
+    }
+
+    async function loadPhotoPinsFromIdb() {
+      try {
+        const db = await openPhotoIdb();
+        const data = await new Promise((resolve, reject) => {
+          const tx = db.transaction(PHOTO_IDB_STORE, 'readonly');
+          const req = tx.objectStore(PHOTO_IDB_STORE).get(PHOTO_IDB_KEY);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => reject(req.error);
+        });
+        db.close();
+        return data;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 標準的な GeoJSON FeatureCollection (RFC 7946 / EPSG:4326) オブジェクトを生成
+    function buildStandardGeoJson() {
+      return {
+        type: 'FeatureCollection',
+        name: 'fukamachi_lab_photo_memos',
+        crs: {
+          type: 'name',
+          properties: {
+            name: 'urn:ogc:def:crs:OGC:1.3:CRS84'
+          }
+        },
+        features: photoPins.map((pin, idx) => ({
+          type: 'Feature',
+          id: pin.id,
+          geometry: {
+            type: 'Point',
+            coordinates: [Number(pin.lng), Number(pin.lat)]
+          },
+          properties: {
+            id: pin.id,
+            no: idx + 1,
+            name: `写真メモ #${idx + 1}`,
+            comment: pin.comment,
+            description: pin.comment,
+            timestamp: pin.timestamp,
+            latitude: Number(pin.lat),
+            longitude: Number(pin.lng),
+            imageData: pin.imageData
+          }
+        }))
+      };
+    }
+
+    // GeoJSON FeatureCollection（または旧配列形式）から内部リストへ変換
+    function parseGeoJsonToPins(parsed) {
+      const results = [];
+      const list = Array.isArray(parsed)
+        ? parsed
+        : (parsed && parsed.type === 'Feature' ? [parsed] : (parsed && Array.isArray(parsed.features) ? parsed.features : []));
+
+      list.forEach(item => {
+        if (item && item.type === 'Feature' && item.geometry && Array.isArray(item.geometry.coordinates)) {
+          const [lng, lat] = item.geometry.coordinates;
+          const props = item.properties || {};
+          const img = props.imageData || props.image || props.photo || '';
+          const comment = props.comment || props.description || props.name || '写真メモ';
+          const numLat = parseFloat(lat);
+          const numLng = parseFloat(lng);
+          if (!isNaN(numLat) && !isNaN(numLng)) {
+            results.push({
+              id: item.id || props.id || ('pm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
+              lat: numLat,
+              lng: numLng,
+              comment,
+              timestamp: props.timestamp || props.datetime || '',
+              imageData: img
+            });
+          }
+        } else if (item && !isNaN(item.lat) && !isNaN(item.lng)) {
+          results.push({
+            id: item.id || ('pm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
+            lat: parseFloat(item.lat),
+            lng: parseFloat(item.lng),
+            comment: item.comment || item.description || '写真メモ',
+            timestamp: item.timestamp || '',
+            imageData: item.imageData || ''
+          });
+        }
+      });
+      return results;
+    }
+
+    async function loadPhotoPins() {
+      let loadedFromLocal = false;
+      try {
+        const raw = localStorage.getItem(PHOTO_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          photoPins = parseGeoJsonToPins(parsed);
+          loadedFromLocal = photoPins.length > 0;
+        }
+      } catch (e) {
+        photoPins = [];
+      }
+      updatePhotoMemoBadgeCount();
+      renderPhotoPins();
+
+      // ブラウザ再起動時に localStorage が消去された場合や容量超過時に備え、IndexedDB からも復元
+      const idbData = await loadPhotoPinsFromIdb();
+      if (idbData) {
+        const idbPins = parseGeoJsonToPins(idbData);
+        if (!loadedFromLocal && idbPins.length > 0) {
+          photoPins = idbPins;
+          try {
+            localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(buildStandardGeoJson()));
+          } catch (e) {}
+          updatePhotoMemoBadgeCount();
+          renderPhotoPins();
+        }
+      }
+    }
+
+    function savePhotoPinsToStorage() {
+      const geojsonObj = buildStandardGeoJson();
+      savePhotoPinsToIdb(geojsonObj);
+      try {
+        localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(geojsonObj));
+      } catch (e) {
+        // localStorage(約5MB上限)を超えた場合もIndexedDBには保存継続しつつ通知
+        alert(isEnglish
+          ? 'LocalStorage quota reached (saved to IndexedDB backup). Consider exporting & clearing old memos.'
+          : 'ローカルストレージの容量上限に近づいています（IndexedDBへバックアップ保存しました）。こまめにファイル共有・不要メモの削除を行ってください。');
+      }
+      updatePhotoMemoBadgeCount();
+    }
+
+    function updatePhotoMemoBadgeCount() {
+      const fBtn = document.getElementById('filterPhotoBtn');
+      const mTitle = document.getElementById('memoPanelToggleTitleText');
+      if (fBtn) {
+        fBtn.textContent = isEnglish
+          ? `📷 Photo Memos (${photoPins.length})`
+          : `📷 写真メモ (${photoPins.length})`;
+      }
+      if (mTitle) {
+        mTitle.textContent = isEnglish
+          ? `📷 Photo Memos (${photoPins.length})`
+          : `📷 写真メモ一覧 (${photoPins.length})`;
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // JPEG Exif GPS タグの簡易パーサー（カメラ写真にGPS座標が埋め込まれている場合に自動抽出）
+    function extractExifGpsFromBuffer(buffer) {
+      try {
+        const view = new DataView(buffer);
+        if (view.getUint16(0, false) !== 0xFFD8) return null;
+        let offset = 2;
+        const length = view.byteLength;
+        while (offset < length) {
+          const marker = view.getUint16(offset, false);
+          offset += 2;
+          if (marker === 0xFFE1) {
+            if (view.getUint32(offset + 2, false) !== 0x45786966) return null;
+            const tiffStart = offset + 8;
+            const little = view.getUint16(tiffStart, false) === 0x4949;
+            const firstIfd = view.getUint32(tiffStart + 4, little);
+            let gpsOffset = null;
+            const entries = view.getUint16(tiffStart + firstIfd, little);
+            for (let i = 0; i < entries; i++) {
+              const entryOffset = tiffStart + firstIfd + 2 + i * 12;
+              if (view.getUint16(entryOffset, little) === 0x8825) {
+                gpsOffset = view.getUint32(entryOffset + 8, little);
+                break;
+              }
+            }
+            if (!gpsOffset) return null;
+            const gpsEntries = view.getUint16(tiffStart + gpsOffset, little);
+            let latRef = 'N', lngRef = 'E', latVals = null, lngVals = null;
+            const readRational3 = (valOff) => {
+              const p = tiffStart + valOff;
+              const d = view.getUint32(p, little) / (view.getUint32(p + 4, little) || 1);
+              const m = view.getUint32(p + 8, little) / (view.getUint32(p + 12, little) || 1);
+              const s = view.getUint32(p + 16, little) / (view.getUint32(p + 20, little) || 1);
+              return d + m / 60 + s / 3600;
+            };
+            for (let i = 0; i < gpsEntries; i++) {
+              const eOff = tiffStart + gpsOffset + 2 + i * 12;
+              const tag = view.getUint16(eOff, little);
+              if (tag === 1) latRef = String.fromCharCode(view.getUint8(eOff + 8));
+              else if (tag === 2) latVals = readRational3(view.getUint32(eOff + 8, little));
+              else if (tag === 3) lngRef = String.fromCharCode(view.getUint8(eOff + 8));
+              else if (tag === 4) lngVals = readRational3(view.getUint32(eOff + 8, little));
+            }
+            if (latVals !== null && lngVals !== null && !isNaN(latVals) && !isNaN(lngVals) && latVals > 0 && lngVals > 0) {
+              const lat = latRef === 'S' ? -latVals : latVals;
+              const lng = lngRef === 'W' ? -lngVals : lngVals;
+              return { lat, lng };
+            }
+            return null;
+          } else if ((marker & 0xFF00) !== 0xFF00) {
+            break;
+          } else {
+            offset += view.getUint16(offset, false);
+          }
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    // 写真を省メモリでリサイズしてJPEG DataURLを生成（FileReaderの巨大Base64文字列化を回避し、createImageBitmap / ObjectURLを使用）
+    async function compressImageFile(file, maxDim = 800, quality = 0.72) {
+      // 1) createImageBitmap (resizeWidth / resizeHeight 対応ブラウザではデコード時点で省メモリ縮小)
+      if (window.createImageBitmap) {
+        try {
+          const bmp = await createImageBitmap(file);
+          let w = bmp.width;
+          let h = bmp.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(bmp, 0, 0, w, h);
+          if (bmp.close) bmp.close();
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          canvas.width = 1;
+          canvas.height = 1;
+          return dataUrl;
+        } catch (e) {}
+      }
+
+      // 2) フォールバック: URL.createObjectURL を使用（FileReader.readAsDataURL によるメモリ膨張を回避）
+      return new Promise((resolve, reject) => {
+        const objUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(objUrl);
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          canvas.width = 1;
+          canvas.height = 1;
+          resolve(dataUrl);
+        };
+        img.onerror = (err) => {
+          URL.revokeObjectURL(objUrl);
+          reject(err);
+        };
+        img.src = objUrl;
+      });
+    }
+
+    let activeCameraStream = null;
+
+    function stopLiveCameraStream() {
+      if (activeCameraStream) {
+        activeCameraStream.getTracks().forEach(t => t.stop());
+        activeCameraStream = null;
+      }
+      const video = document.getElementById('liveCameraVideo');
+      if (video) {
+        video.srcObject = null;
+      }
+    }
+
+    function acquireGpsForModal() {
+      const statusEl = document.getElementById('photoCoordStatus');
+      const latInput = document.getElementById('photoLatInput');
+      const lngInput = document.getElementById('photoLngInput');
+
+      const c = map.getCenter();
+      latInput.value = c.lat.toFixed(6);
+      lngInput.value = c.lng.toFixed(6);
+      statusEl.textContent = isEnglish
+        ? '📡 Acquiring GPS location...'
+        : '📡 スマートフォンの位置情報を取得中...';
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            latInput.value = pos.coords.latitude.toFixed(6);
+            lngInput.value = pos.coords.longitude.toFixed(6);
+            statusEl.textContent = isEnglish
+              ? '📍 Acquired current smartphone GPS location'
+              : '📍 スマートフォンの現在地GPSを取得しました';
+          },
+          () => {
+            statusEl.textContent = isEnglish
+              ? '⚠️ GPS unavailable — using current map center (editable below)'
+              : '⚠️ GPS未取得のため現在の地図中心をセットしました（数値変更可）';
+          },
+          { enableHighAccuracy: true, timeout: 7000, maximumAge: 15000 }
+        );
+      } else {
+        statusEl.textContent = isEnglish
+          ? '📍 Using current map center'
+          : '📍 現在の地図中心座標を使用しています';
+      }
+    }
+
+    // ブラウザ内で軽量カメラストリーム（最大1280×960）を起動し、OSカメラアプリ起動時のメモリ不足クラッシュを防ぐ
+    async function openCameraTrigger() {
+      editingPhotoId = null;
+      pendingPhotoDataUrl = null;
+      document.getElementById('photoModalTitle').textContent = isEnglish
+        ? '📷 Create Photo Memo'
+        : '📷 写真メモの作成';
+      document.getElementById('photoCommentInput').value = '';
+      document.getElementById('shutterCaptureBtn').textContent = isEnglish
+        ? '📸 Capture Photo (Low-Memory)'
+        : '📸 この画面を撮影（省メモリ）';
+      document.getElementById('fallbackFilePickerBtn').textContent = isEnglish
+        ? '🖼️ Choose Photo / File'
+        : '🖼️ アルバム・ファイル選択';
+
+      acquireGpsForModal();
+
+      const liveSec = document.getElementById('liveCameraSection');
+      const previewBox = document.getElementById('photoPreviewBox');
+      const retakeBar = document.getElementById('retakeBar');
+      const video = document.getElementById('liveCameraVideo');
+
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          stopLiveCameraStream();
+          activeCameraStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 960, max: 1280 },
+              height: { ideal: 720, max: 960 }
+            },
+            audio: false
+          });
+          video.srcObject = activeCameraStream;
+          await video.play().catch(() => {});
+          liveSec.style.display = 'flex';
+          previewBox.style.display = 'none';
+          retakeBar.style.display = 'none';
+          document.getElementById('photoModalBackdrop').classList.add('open');
+          return;
+        } catch (err) {
+          stopLiveCameraStream();
+        }
+      }
+
+      // WebRTC getUserMedia が使えない環境（file:// 等）ではファイル選択を開く
+      const input = document.getElementById('cameraFileInput');
+      input.value = '';
+      input.click();
+    }
+
+    document.getElementById('mapCameraFab').addEventListener('click', openCameraTrigger);
+
+    // ライブカメラ映像から直接Canvas(最大800px)にキャプチャ
+    document.getElementById('shutterCaptureBtn').addEventListener('click', () => {
+      const video = document.getElementById('liveCameraVideo');
+      if (!video || !video.videoWidth) return;
+      const maxDim = 800;
+      let w = video.videoWidth;
+      let h = video.videoHeight;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, w, h);
+      pendingPhotoDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+      canvas.width = 1;
+      canvas.height = 1;
+
+      stopLiveCameraStream();
+      document.getElementById('photoPreviewImg').src = pendingPhotoDataUrl;
+      document.getElementById('liveCameraSection').style.display = 'none';
+      document.getElementById('photoPreviewBox').style.display = 'flex';
+      document.getElementById('retakeBar').style.display = 'flex';
+    });
+
+    document.getElementById('fallbackFilePickerBtn').addEventListener('click', () => {
+      stopLiveCameraStream();
+      const input = document.getElementById('cameraFileInput');
+      input.value = '';
+      input.click();
+    });
+
+    document.getElementById('retakeCameraBtn').addEventListener('click', () => {
+      openCameraTrigger();
+    });
+
+    document.getElementById('reselectFileBtn').addEventListener('click', () => {
+      stopLiveCameraStream();
+      const input = document.getElementById('cameraFileInput');
+      input.value = '';
+      input.click();
+    });
+
+    document.getElementById('cameraFileInput').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      stopLiveCameraStream();
+      const statusEl = document.getElementById('photoCoordStatus');
+      const latInput = document.getElementById('photoLatInput');
+      const lngInput = document.getElementById('photoLngInput');
+      const previewImg = document.getElementById('photoPreviewImg');
+
+      document.getElementById('liveCameraSection').style.display = 'none';
+      document.getElementById('photoPreviewBox').style.display = 'flex';
+      document.getElementById('retakeBar').style.display = 'flex';
+      document.getElementById('photoModalBackdrop').classList.add('open');
+
+      // 1) Exif GPS チェック（先頭64KBのみスライスして読み込むことで数MB〜十数MBのバッファ確保によるメモリ不足を防止）
+      let exifGps = null;
+      try {
+        const headerBlob = file.slice(0, 65536);
+        const buf = await headerBlob.arrayBuffer();
+        exifGps = extractExifGpsFromBuffer(buf);
+      } catch (err) {}
+
+      if (exifGps) {
+        latInput.value = exifGps.lat.toFixed(6);
+        lngInput.value = exifGps.lng.toFixed(6);
+        statusEl.textContent = isEnglish
+          ? '📍 Extracted GPS coordinates from photo Exif'
+          : '📍 写真のExifデータから撮影位置を取得しました';
+      } else {
+        acquireGpsForModal();
+      }
+
+      try {
+        pendingPhotoDataUrl = await compressImageFile(file, 800, 0.72);
+        previewImg.src = pendingPhotoDataUrl;
+      } catch (err) {
+        alert('画像の読み込みに失敗しました。');
+      }
+    });
+
+    document.getElementById('photoUseCenterBtn').addEventListener('click', () => {
+      const c = map.getCenter();
+      document.getElementById('photoLatInput').value = c.lat.toFixed(6);
+      document.getElementById('photoLngInput').value = c.lng.toFixed(6);
+      document.getElementById('photoCoordStatus').textContent = isEnglish
+        ? '📍 Set to current map center'
+        : '📍 現在表示中の地図中心座標をセットしました';
+    });
+
+    function closePhotoModal() {
+      stopLiveCameraStream();
+      document.getElementById('photoModalBackdrop').classList.remove('open');
+      pendingPhotoDataUrl = null;
+      editingPhotoId = null;
+    }
+
+    document.getElementById('photoModalCloseBtn').addEventListener('click', closePhotoModal);
+    document.getElementById('photoCancelBtn').addEventListener('click', closePhotoModal);
+
+    function saveCurrentModalPhotoPin() {
+      const lat = parseFloat(document.getElementById('photoLatInput').value);
+      const lng = parseFloat(document.getElementById('photoLngInput').value);
+      const comment = document.getElementById('photoCommentInput').value.trim();
+
+      if (isNaN(lat) || isNaN(lng)) {
+        alert(isEnglish ? 'Please enter valid coordinates.' : '有効な緯度・経度を入力してください。');
+        return null;
+      }
+
+      if (editingPhotoId) {
+        const target = photoPins.find(p => p.id === editingPhotoId);
+        if (target) {
+          target.lat = lat;
+          target.lng = lng;
+          target.comment = comment;
+          if (pendingPhotoDataUrl) target.imageData = pendingPhotoDataUrl;
+          savePhotoPinsToStorage();
+          renderPhotoPins();
+          closePhotoModal();
+          focusPhotoPin(target.id);
+          return target;
+        }
+      }
+
+      if (!pendingPhotoDataUrl) {
+        alert(isEnglish ? 'Photo is not ready yet.' : '写真の読み込みが完了していません。');
+        return null;
+      }
+
+      const now = new Date();
+      const timeStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const newPin = {
+        id: 'pm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        lat,
+        lng,
+        comment: comment || (isEnglish ? 'Photo Memo' : 'フィールド写真メモ'),
+        timestamp: timeStr,
+        imageData: pendingPhotoDataUrl
+      };
+
+      photoPins.push(newPin);
+      savePhotoPinsToStorage();
+      renderPhotoPins();
+      closePhotoModal();
+      focusPhotoPin(newPin.id);
+      return newPin;
+    }
+
+    document.getElementById('photoSaveBtn').addEventListener('click', () => {
+      saveCurrentModalPhotoPin();
+    });
+
+    document.getElementById('photoSaveAndShareBtn').addEventListener('click', async () => {
+      const saved = saveCurrentModalPhotoPin();
+      if (saved) {
+        await shareSinglePhotoMemo(saved.id);
+      }
+    });
+
+    function renderPhotoPins() {
+      photoPinsLayer.clearLayers();
+      photoMarkerMap = {};
+
+      photoPins.forEach((pin, idx) => {
+        const memoNum = idx + 1;
+        const icon = L.divIcon({
+          className: 'photo-pin-wrapper',
+          html: `<div class="photo-marker"><img src="${pin.imageData}" alt="Memo ${memoNum}" /><span class="photo-marker-badge">${memoNum}</span></div>`,
+          iconSize: [40, 40],
+          iconAnchor: [20, 20],
+          popupAnchor: [0, -20]
+        });
+
+        const popupHtml = `
+          <div class="popup-title">📷 ${isEnglish ? `Photo Memo #${memoNum}` : `写真メモ #${memoNum}`}</div>
+          <div style="font-size:0.74rem;color:#607d8b;margin-bottom:4px;">🕒 ${escapeHtml(pin.timestamp)} | 📍 ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
+          <img class="photo-popup-img" src="${pin.imageData}" alt="Photo Memo" onclick="window.open(this.src, '_blank')" title="タップして拡大表示" />
+          <div class="photo-popup-comment">${escapeHtml(pin.comment)}</div>
+          <div class="card-links">
+            <button type="button" class="link-pill share-pill" onclick="shareSinglePhotoMemo('${pin.id}')">📤 ${isEnglish ? 'Share' : '共有'}</button>
+            <button type="button" class="link-pill edit-pill" onclick="editPhotoMemo('${pin.id}')">✏️ ${isEnglish ? 'Edit' : 'コメント編集'}</button>
+            <button type="button" class="link-pill del-pill" onclick="deletePhotoMemo('${pin.id}')">🗑️ ${isEnglish ? 'Delete' : '削除'}</button>
+          </div>
+        `;
+
+        const marker = L.marker([pin.lat, pin.lng], { icon }).bindPopup(popupHtml).addTo(photoPinsLayer);
+        photoMarkerMap[pin.id] = marker;
+      });
+
+      // タイムラインパネル側にも写真メモカードを表示（フィルターが all または photo の場合）
+      const timelineEl = document.getElementById('timeline');
+      if (timelineEl) {
+        timelineEl.querySelectorAll('.photo-memo-card').forEach(el => el.remove());
+        if (currentFilter === 'all' || currentFilter === 'photo') {
+          photoPins.forEach((pin, idx) => {
+            const memoNum = idx + 1;
+            const card = document.createElement('div');
+            card.className = 'card photo-memo-card';
+            card.id = `card-${pin.id}`;
+            card.style.borderLeftColor = '#c62828';
+            card.innerHTML = `
+              <div class="card-header">
+                <span class="badge-no" style="background:#c62828;">📷${memoNum}</span>
+                <span class="time-range" style="color:#c62828;">${escapeHtml(pin.timestamp)}</span>
+                <span class="badge-cat">${isEnglish ? 'Photo Memo' : '写真メモ'}</span>
+              </div>
+              <div style="display:flex;gap:10px;align-items:flex-start;margin:6px 0;">
+                <img src="${pin.imageData}" alt="Memo" style="width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid #cfd8dc;flex-shrink:0;" />
+                <div style="flex:1;min-width:0;">
+                  <div class="card-title" style="margin-bottom:3px;">${escapeHtml(pin.comment)}</div>
+                  <div class="card-place">📍 ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
+                </div>
+              </div>
+              <div class="card-links">
+                <button type="button" class="link-pill share-pill" onclick="event.stopPropagation(); shareSinglePhotoMemo('${pin.id}');">📤 ${isEnglish ? 'Share' : '共有'}</button>
+                <button type="button" class="link-pill edit-pill" onclick="event.stopPropagation(); editPhotoMemo('${pin.id}');">✏️ ${isEnglish ? 'Edit' : '編集'}</button>
+                <button type="button" class="link-pill del-pill" onclick="event.stopPropagation(); deletePhotoMemo('${pin.id}');">🗑️ ${isEnglish ? 'Delete' : '削除'}</button>
+              </div>
+            `;
+            card.addEventListener('click', () => focusPhotoPin(pin.id));
+            timelineEl.appendChild(card);
+          });
+        }
+      }
+
+      renderMemoListModalContent();
+    }
+
+    window.focusPhotoPin = function(id) {
+      const pin = photoPins.find(p => p.id === id);
+      const marker = photoMarkerMap[id];
+      if (!pin || !marker) return;
+      map.closePopup();
+      map.flyTo([pin.lat, pin.lng], 17, { animate: true, duration: 1.2 });
+      map.once('moveend', () => {
+        marker.openPopup();
+      });
+    };
+
+    window.editPhotoMemo = function(id) {
+      const pin = photoPins.find(p => p.id === id);
+      if (!pin) return;
+      stopLiveCameraStream();
+      editingPhotoId = pin.id;
+      pendingPhotoDataUrl = pin.imageData;
+      document.getElementById('liveCameraSection').style.display = 'none';
+      document.getElementById('photoPreviewBox').style.display = 'flex';
+      document.getElementById('retakeBar').style.display = 'flex';
+      document.getElementById('photoModalTitle').textContent = isEnglish
+        ? '✏️ Edit Photo Memo'
+        : '✏️ 写真メモの編集';
+      document.getElementById('photoPreviewImg').src = pin.imageData;
+      document.getElementById('photoLatInput').value = pin.lat.toFixed(6);
+      document.getElementById('photoLngInput').value = pin.lng.toFixed(6);
+      document.getElementById('photoCommentInput').value = pin.comment || '';
+      document.getElementById('photoCoordStatus').textContent = isEnglish
+        ? '📍 Coordinates & comment can be updated below'
+        : '📍 座標やコメントを編集して保存できます';
+      document.getElementById('photoModalBackdrop').classList.add('open');
+    };
+
+    window.deletePhotoMemo = function(id) {
+      const msg = isEnglish ? 'Delete this photo memo?' : 'この写真メモを削除しますか？';
+      if (!confirm(msg)) return;
+      photoPins = photoPins.filter(p => p.id !== id);
+      savePhotoPinsToStorage();
+      renderPhotoPins();
+    };
+
+    document.getElementById('clearAllMemosBtn').addEventListener('click', () => {
+      if (photoPins.length === 0) {
+        alert(isEnglish ? 'No photo memos in storage.' : '保存されている写真メモはありません。');
+        return;
+      }
+      const msg = isEnglish
+        ? `Delete all ${photoPins.length} photo memos from browser storage?`
+        : `ブラウザのストレージに保存されている写真メモ（全${photoPins.length}件）をすべて削除して容量を空けますか？`;
+      if (!confirm(msg)) return;
+      photoPins = [];
+      try { localStorage.removeItem(PHOTO_STORAGE_KEY); } catch (e) {}
+      savePhotoPinsToIdb(buildStandardGeoJson());
+      updatePhotoMemoBadgeCount();
+      renderPhotoPins();
+    });
+
+    function dataUrlToBlob(dataUrl) {
+      const parts = dataUrl.split(',');
+      const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+      const bstr = atob(parts[1]);
+      let n = bstr.length;
+      const u8 = new Uint8Array(n);
+      while (n--) u8[n] = bstr.charCodeAt(n);
+      return new Blob([u8], { type: mime });
+    }
+
+    // 個別の写真メモをスマートフォンのネイティブ共有シート（Quick Share / LINE / AirDrop 等）で共有
+    window.shareSinglePhotoMemo = async function(id) {
+      const idx = photoPins.findIndex(p => p.id === id);
+      if (idx < 0) return;
+      const pin = photoPins[idx];
+      const gmapUrl = `https://www.google.com/maps?q=${pin.lat},${pin.lng}`;
+      const shareText = `📷 写真メモ #${idx + 1}\n💬 ${pin.comment}\n🕒 ${pin.timestamp}\n📍 ${pin.lat.toFixed(6)}, ${pin.lng.toFixed(6)}\n🗺️ ${gmapUrl}`;
+
+      try {
+        const blob = dataUrlToBlob(pin.imageData);
+        const file = new File([blob], `photo_memo_${idx + 1}.jpg`, { type: 'image/jpeg' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: `写真メモ #${idx + 1}`,
+            text: shareText,
+            files: [file]
+          });
+          return;
+        }
+        if (navigator.share) {
+          await navigator.share({
+            title: `写真メモ #${idx + 1}`,
+            text: shareText,
+            url: gmapUrl
+          });
+          return;
+        }
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+      }
+
+      // Web Share API 非対応環境では写真と情報をダウンロード
+      const a = document.createElement('a');
+      a.href = pin.imageData;
+      a.download = `photo_memo_${idx + 1}.jpg`;
+      a.click();
+    };
+
+    // ヘッダー直下の「写真メモ一覧」折りたたみパネル内のカードリスト描画（情報パネルとデザイン統一）
+    function renderMemoListModalContent() {
+      const container = document.getElementById('memoListContainer');
+      if (!container) return;
+      if (photoPins.length === 0) {
+        container.innerHTML = `<div style="padding:18px 12px;text-align:center;color:#607d8b;font-size:0.82rem;background:#fff;border-radius:10px;">${
+          isEnglish
+            ? 'No photo memos yet. Tap "📷 Photo Memo" on the map to take a geotagged photo and add comments.'
+            : 'まだ写真メモがありません。地図右下の「📷 写真メモ撮影」ボタンから位置情報付き写真を撮影して作成できます。'
+        }</div>`;
+        return;
+      }
+
+      container.innerHTML = photoPins.map((pin, idx) => {
+        const memoNum = idx + 1;
+        const gmapUrl = `https://www.google.com/maps/search/?api=1&query=${pin.lat},${pin.lng}`;
+        return `
+          <div class="card" style="border-left-color:#c62828;" onclick="focusPhotoPin('${pin.id}')">
+            <div class="card-header">
+              <span class="badge-no" style="background:#c62828;">📷${memoNum}</span>
+              <span class="time-range" style="color:#c62828;">${escapeHtml(pin.timestamp)}</span>
+              <span class="badge-cat">${isEnglish ? 'Photo Memo' : '写真メモ'}</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;margin:6px 0;">
+              <img src="${pin.imageData}" alt="Memo ${memoNum}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #cfd8dc;flex-shrink:0;" />
+              <div style="flex:1;min-width:0;">
+                <div class="card-title" style="margin-bottom:3px;">${escapeHtml(pin.comment)}</div>
+                <div class="card-place">📍 ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
+              </div>
+            </div>
+            <div class="card-links">
+              <button type="button" class="link-pill" onclick="event.stopPropagation(); focusPhotoPin('${pin.id}');">🎯 ${isEnglish ? 'Map' : '地図で表示'}</button>
+              <button type="button" class="link-pill share-pill" onclick="event.stopPropagation(); shareSinglePhotoMemo('${pin.id}');">📤 ${isEnglish ? 'Share' : '単体共有'}</button>
+              <button type="button" class="link-pill edit-pill" onclick="event.stopPropagation(); editPhotoMemo('${pin.id}');">✏️ ${isEnglish ? 'Edit' : '編集'}</button>
+              <a class="link-pill gmap" href="${gmapUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">🗺️ ${isEnglish ? 'Google Maps' : 'Googleマップ'}</a>
+              <button type="button" class="link-pill del-pill" onclick="event.stopPropagation(); deletePhotoMemo('${pin.id}');">🗑️ ${isEnglish ? 'Delete' : '削除'}</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // スマートフォンのQuick Share / アプリ共有またはダウンロードを実行する共通ヘルパー
+    async function shareOrDownloadFile(file, title, text) {
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title,
+            text,
+            files: [file]
+          });
+          return;
+        }
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+      }
+      const url = URL.createObjectURL(file);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+
+    // 1) 標準的な GeoJSON 形式（FeatureCollection / RFC 7946準拠）で一覧を一括共有
+    document.getElementById('shareAllJsonBtn').addEventListener('click', async () => {
+      if (photoPins.length === 0) {
+        alert(isEnglish ? 'No photo memos to share.' : '共有する写真メモがありません。');
+        return;
+      }
+      const geojsonObj = buildStandardGeoJson();
+      const jsonStr = JSON.stringify(geojsonObj, null, 2);
+      const fileName = `fukamachi_photo_memos_${new Date().toISOString().slice(0, 10)}.geojson`;
+      const file = new File([jsonStr], fileName, { type: 'application/geo+json' });
+      await shareOrDownloadFile(
+        file,
+        '京大・深町研 フィールドワーク写真メモ (GeoJSON)',
+        `写真メモ一覧（全${photoPins.length}件・標準GeoJSON形式）`
+      );
+    });
+
+    // 2) KMZ形式（doc.kml + files/photo_N.jpg をZIP圧縮したGoogle Earth / GIS標準形式）で一覧を一括共有
+    document.getElementById('shareAllKmzBtn').addEventListener('click', async () => {
+      if (photoPins.length === 0) {
+        alert(isEnglish ? 'No photo memos to share.' : '共有する写真メモがありません。');
+        return;
+      }
+      if (typeof JSZip === 'undefined') {
+        alert(isEnglish ? 'JSZip library is loading. Please try again.' : 'KMZ生成ライブラリを読み込み中です。通信環境をご確認のうえ再度お試しください。');
+        return;
+      }
+
+      const zip = new JSZip();
+      const imgFolder = zip.folder('files');
+
+      const placemarksXml = photoPins.map((pin, idx) => {
+        const num = idx + 1;
+        const imgFileName = `photo_${num}.jpg`;
+        const base64Data = (pin.imageData.split(',')[1] || '');
+        imgFolder.file(imgFileName, base64Data, { base64: true });
+
+        const safeTitle = escapeHtml(`写真メモ #${num}: ${pin.comment}`);
+        const cdataDesc = `<![CDATA[
+          <div style="font-family:sans-serif;max-width:340px;">
+            <p><b>🕒 撮影日時:</b> ${escapeHtml(pin.timestamp)}</p>
+            <p><b>📍 緯度・経度:</b> ${pin.lat.toFixed(6)}, ${pin.lng.toFixed(6)}</p>
+            <p><b>💬 コメント:</b><br/>${escapeHtml(pin.comment)}</p>
+            <p><img src="files/${imgFileName}" style="max-width:300px;border-radius:6px;" /></p>
+          </div>
+        ]]>`;
+
+        return `
+    <Placemark>
+      <name>${safeTitle}</name>
+      <description>${cdataDesc}</description>
+      <ExtendedData>
+        <Data name="id"><value>${escapeHtml(pin.id)}</value></Data>
+        <Data name="comment"><value>${escapeHtml(pin.comment)}</value></Data>
+        <Data name="timestamp"><value>${escapeHtml(pin.timestamp)}</value></Data>
+        <Data name="imageFile"><value>files/${imgFileName}</value></Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>${pin.lng},${pin.lat},0</coordinates>
+      </Point>
+    </Placemark>`;
+      }).join('\n');
+
+      const kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>京大・深町研究室 ゼミ旅行 写真メモ一覧</name>
+    <description>能登・七尾市中島町フィールドワーク 写真メモ（全${photoPins.length}件）</description>${placemarksXml}
+  </Document>
+</kml>`;
+
+      zip.file('doc.kml', kmlContent);
+
+      const kmzBlob = await zip.generateAsync({
+        type: 'blob',
+        mimeType: 'application/vnd.google-earth.kmz',
+        compression: 'DEFLATE'
+      });
+      const fileName = `fukamachi_photo_memos_${new Date().toISOString().slice(0, 10)}.kmz`;
+      const file = new File([kmzBlob], fileName, { type: 'application/vnd.google-earth.kmz' });
+      await shareOrDownloadFile(
+        file,
+        '京大・深町研 フィールドワーク写真メモ (KMZ)',
+        `写真メモ一覧（全${photoPins.length}件・Google Earth / GIS対応 KMZ形式）`
+      );
+    });
+
+    // 3) 共有された JSON (.json / .geojson) または KMZ (.kmz) ファイルをマップにインポート
+    document.getElementById('importMemoInput').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        let importedCount = 0;
+        const lowerName = file.name.toLowerCase();
+
+        if (lowerName.endsWith('.kmz') && typeof JSZip !== 'undefined') {
+          const zip = await JSZip.loadAsync(file);
+          const kmlFile = zip.file('doc.kml') || zip.file(/\.kml$/i)[0];
+          if (kmlFile) {
+            const kmlText = await kmlFile.async('string');
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
+            const placemarks = Array.from(xmlDoc.getElementsByTagName('Placemark'));
+            for (const pm of placemarks) {
+              const coordText = (pm.getElementsByTagName('coordinates')[0]?.textContent || '').trim();
+              const [lngStr, latStr] = coordText.split(',');
+              const lat = parseFloat(latStr);
+              const lng = parseFloat(lngStr);
+              if (isNaN(lat) || isNaN(lng)) continue;
+
+              let comment = pm.getElementsByTagName('name')[0]?.textContent || '写真メモ';
+              let timestamp = new Date().toLocaleString('ja-JP');
+              let imgPath = '';
+
+              Array.from(pm.getElementsByTagName('Data')).forEach(d => {
+                const nameAttr = d.getAttribute('name');
+                const val = d.getElementsByTagName('value')[0]?.textContent || '';
+                if (nameAttr === 'comment' && val) comment = val;
+                if (nameAttr === 'timestamp' && val) timestamp = val;
+                if (nameAttr === 'imageFile' && val) imgPath = val;
+              });
+
+              if (!imgPath) {
+                const desc = pm.getElementsByTagName('description')[0]?.textContent || '';
+                const m = desc.match(/src=["']([^"']+)["']/i);
+                if (m) imgPath = m[1];
+              }
+
+              let imageData = '';
+              if (imgPath && zip.file(imgPath)) {
+                const b64 = await zip.file(imgPath).async('base64');
+                imageData = `data:image/jpeg;base64,${b64}`;
+              }
+
+              if (imageData) {
+                photoPins.push({
+                  id: 'pm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                  lat,
+                  lng,
+                  comment,
+                  timestamp,
+                  imageData
+                });
+                importedCount++;
+              }
+            }
+          }
+        } else {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          const importedList = parseGeoJsonToPins(parsed);
+          importedList.forEach(pin => {
+            photoPins.push(pin);
+            importedCount++;
+          });
+        }
+
+        if (importedCount > 0) {
+          savePhotoPinsToStorage();
+          renderPhotoPins();
+          alert(isEnglish
+            ? `Imported ${importedCount} photo memo(s)!`
+            : `${importedCount}件の写真メモを読み込みました。`);
+        } else {
+          alert(isEnglish ? 'No valid photo memos found in file.' : '有効な写真メモデータが見つかりませんでした。');
+        }
+      } catch (err) {
+        alert(isEnglish ? 'Failed to load photo memo file.' : '写真メモファイルの読み込みに失敗しました。');
+      }
+      e.target.value = '';
+    });
+
+    function fitAllMarkers(animate = true) {
+      const coords = currentItems.filter(i => !isNaN(i.lat) && !isNaN(i.lng)).map(i => [i.lat, i.lng]);
+      if (coords.length > 0) {
+        if (animate) {
+          map.flyToBounds(coords, { padding: [30, 30], duration: 1.2 });
+        } else {
+          map.fitBounds(coords, { padding: [30, 30] });
+        }
+      }
+    }
+
+    document.querySelectorAll('#infoPanel .chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#infoPanel .chip').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderData(currentItems, btn.dataset.filter);
+      });
+    });
+
+    document.getElementById('fitBoundsBtn').addEventListener('click', () => fitAllMarkers(true));
+
+    let userMarker = null;
+    document.getElementById('locateBtn').addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        alert('お使いのブラウザは現在地取得に対応していません。');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(pos => {
+        const latlng = [pos.coords.latitude, pos.coords.longitude];
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = L.circleMarker(latlng, {
+          radius: 9,
+          fillColor: '#0288d1',
+          color: '#fff',
+          weight: 3,
+          fillOpacity: 1
+        }).addTo(map).bindPopup('📱 現在地').openPopup();
+        map.flyTo(latlng, 15, { duration: 1.2 });
+      }, () => {
+        alert('現在地を取得できませんでした。位置情報の許可設定をご確認ください。');
+      });
+    });
+
+    function googleTranslateElementInit() {
+      if (window.google && window.google.translate) {
+        new google.translate.TranslateElement({
+          pageLanguage: 'ja',
+          includedLanguages: 'en,ja',
+          autoDisplay: false
+        }, 'google_translate_element');
+      }
+    }
+
+    init();
+  </script>
+  <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async defer></script>
+</body>
+</html>
