@@ -157,11 +157,10 @@
     .panel.top-memo-panel {
       border-top: none;
       border-bottom: 2px solid #cfd8dc;
-      height: 42%;
+      height: 44%;
     }
-    /* 折りたたみ時（高さ42pxのバーのみ表示） */
-    .panel.collapsed,
-    .panel.top-memo-panel.collapsed {
+    /* 折りたたみ時（情報パネル・写真メモ一覧パネル共通で高さ42pxのバー表示） */
+    .panel.collapsed {
       height: 42px;
     }
     .panel.collapsed .filter-bar,
@@ -674,6 +673,133 @@
       white-space: pre-wrap;
       word-break: break-word;
     }
+    .photo-tags-section {
+      background: #f8fafb;
+      border: 1px solid #cfd8dc;
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .preset-tags-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .tag-preset-btn {
+      border: 1px solid #b0bec5;
+      background: #fff;
+      color: #37474f;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tag-preset-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .tag-custom-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .tag-custom-input {
+      flex: 1;
+      border: 1px solid #b0bec5;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 0.76rem;
+      font-family: inherit;
+    }
+    .selected-tags-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .memo-tag-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #e8f5e9;
+      color: #1b5e20;
+      border: 1px solid #a5d6a7;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .memo-tag-badge .remove-tag {
+      cursor: pointer;
+      font-weight: 900;
+      color: #2e7d32;
+      margin-left: 2px;
+    }
+    .memo-author-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: #e3f2fd;
+      color: #0d47a1;
+      border: 1px solid #90caf9;
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .memo-stats-box {
+      background: #fff;
+      border-bottom: 1px solid #cfd8dc;
+      padding: 10px 14px;
+      font-size: 0.78rem;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .stat-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 4px 0;
+      padding: 3px 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .stat-bar-row:hover, .stat-bar-row.active {
+      background: #e8f5e9;
+    }
+    .stat-bar-label {
+      min-width: 135px;
+      font-weight: 700;
+      color: #1b5e20;
+      font-size: 0.74rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .stat-bar-track {
+      flex: 1;
+      height: 8px;
+      background: #eceff1;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .stat-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 999px;
+    }
+    .stat-bar-count {
+      font-weight: 800;
+      color: #263238;
+      font-size: 0.74rem;
+      min-width: 38px;
+      text-align: right;
+    }
     .link-pill.share-pill {
       background: #e3f2fd;
       color: #0d47a1;
@@ -712,23 +838,26 @@
       <button class="btn" id="nowStopBtn" title="現在時刻のチェックポイントを表示">🕒 現在時刻の地点</button>
       <button class="btn" id="fitBoundsBtn" title="全体を表示">🗺️ 全体表示</button>
       <button class="btn" id="locateBtn" title="現在地を表示">📍 現在地</button>
-      <input type="file" id="cameraFileInput" accept="image/*" capture="environment" style="display:none;" />
+      <input type="file" id="cameraFileInput" accept="image/*" style="display:none;" />
     </div>
   </header>
 
   <div class="main-container">
-    <!-- ヘッダーの下部分に配置した折りたたみ式「写真メモ一覧」パネル（情報パネルとデザイン統一） -->
+    <!-- ヘッダーの下部分に展開される折りたたみ式「写真メモ一覧」パネル（情報パネルとデザイン統一） -->
     <div class="panel top-memo-panel collapsed" id="memoPanel">
       <div class="panel-toggle-bar" id="memoPanelToggleBar" title="タップして写真メモ一覧パネルを開閉">
         <span class="panel-toggle-title" id="memoPanelToggleTitleText">📷 写真メモ一覧 (0)</span>
         <span class="toggle-btn-badge" id="memoPanelToggleBadge">▼ 展開する</span>
       </div>
       <div class="filter-bar">
+        <button type="button" class="chip" id="setAuthorNickBtn" style="color:#0d47a1;border-color:#90caf9;background:#e3f2fd;" title="一度設定すると、以降すべての写真メモに自動で作成者ニックネームが付与されます">👤 作成者: 未設定</button>
         <button type="button" class="chip active" id="shareAllJsonBtn" title="スマートフォンのクイックシェアやアプリでJSON形式として共有">📤 JSON形式で共有</button>
-        <button type="button" class="chip active" id="shareAllKmzBtn" style="background:#0277bd;border-color:#0277bd;" title="Google EarthやGISアプリで開ける写真入りKMZ形式で共有">🌍 KMZ形式で共有</button>
-        <label class="chip" for="importMemoInput" id="importMemoLabel" style="cursor:pointer;" title="共有された写真メモファイル(.json / .geojson / .kmz)を読み込む">📥 メモ読込</label>
+        <label class="chip" for="importMemoInput" id="importMemoLabel" style="cursor:pointer;" title="共有された写真メモファイル(.json / .geojson)を読み込む">📥 メモ読込</label>
         <input type="file" id="importMemoInput" accept=".json,.geojson,.kmz" style="display:none;" />
+        <button type="button" class="chip" id="memoTagStatsBtn" title="登録されている写真メモのタグ件数・作成者別件数を集計して表示">📊 タグ集計</button>
+        <button type="button" class="chip" id="clearAllMemosBtn" style="color:#c62828;border-color:#ef9a9a;" title="ブラウザのストレージから写真メモを一括削除して空き容量を確保">🗑️ 全削除</button>
       </div>
+      <div class="memo-stats-box" id="memoTagStatsBox" style="display:none;"></div>
       <div class="timeline" id="memoListContainer"></div>
     </div>
 
@@ -769,8 +898,22 @@
         <h2 id="photoModalTitle">📷 写真メモの作成</h2>
         <button class="photo-modal-close" id="photoModalCloseBtn" title="閉じる">✕</button>
       </div>
-      <div class="photo-preview-box">
+      <!-- メモリ消費を抑えるブラウザ内蔵ライブカメラビュー（または写真選択） -->
+      <div id="liveCameraSection" style="display:none; flex-direction:column; gap:8px;">
+        <div style="position:relative; width:100%; border-radius:10px; overflow:hidden; background:#000; max-height:240px; display:flex; align-items:center; justify-content:center;">
+          <video id="liveCameraVideo" autoplay playsinline muted style="width:100%; max-height:240px; object-fit:contain;"></video>
+        </div>
+        <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+          <button type="button" class="photo-btn primary" id="shutterCaptureBtn" style="flex:1; justify-content:center;">📸 この画面を撮影（省メモリ）</button>
+          <button type="button" class="photo-btn cancel" id="fallbackFilePickerBtn">🖼️ アルバム / 標準カメラ</button>
+        </div>
+      </div>
+      <div class="photo-preview-box" id="photoPreviewBox">
         <img id="photoPreviewImg" src="" alt="Preview" />
+      </div>
+      <div id="retakeBar" style="display:none; justify-content:space-between; align-items:center; gap:6px;">
+        <button type="button" class="link-pill" id="retakeCameraBtn" style="cursor:pointer;">🔄 再撮影する</button>
+        <button type="button" class="link-pill" id="reselectFileBtn" style="cursor:pointer;">🖼️ 別の写真を選択</button>
       </div>
       <div class="photo-coord-bar">
         <div id="photoCoordStatus">📍 位置情報を取得中...</div>
@@ -782,13 +925,47 @@
           <button type="button" class="step-btn" id="photoUseCenterBtn" style="padding:3px 8px;font-size:0.7rem;">現在表示中心</button>
         </div>
       </div>
+      <div class="photo-tags-section">
+        <label id="photoTagLabel" style="font-size:0.78rem;font-weight:700;color:#37474f;display:block;">🏷️ タグを選択・追加</label>
+        <div id="presetTagsContainer" style="display:flex;flex-direction:column;gap:6px;">
+          <div style="font-size:0.68rem;font-weight:700;color:#1b5e20;">🌿 世界農業遺産「能登の里山里海」構成資産（10個）</div>
+          <div class="preset-tags-row">
+            <button type="button" class="tag-preset-btn" data-tag="アテ林業">#アテ林業</button>
+            <button type="button" class="tag-preset-btn" data-tag="二次林・薪炭林">#二次林・薪炭林</button>
+            <button type="button" class="tag-preset-btn" data-tag="谷地田・棚田">#谷地田・棚田</button>
+            <button type="button" class="tag-preset-btn" data-tag="ため池・水路">#ため池・水路</button>
+            <button type="button" class="tag-preset-btn" data-tag="能登かき養殖">#能登かき養殖</button>
+            <button type="button" class="tag-preset-btn" data-tag="里海・七尾湾">#里海・七尾湾</button>
+            <button type="button" class="tag-preset-btn" data-tag="伝統集落・古民家">#伝統集落・古民家</button>
+            <button type="button" class="tag-preset-btn" data-tag="製材・木工利用">#製材・木工利用</button>
+            <button type="button" class="tag-preset-btn" data-tag="農林水産の循環">#農林水産の循環</button>
+            <button type="button" class="tag-preset-btn" data-tag="生物多様性・植生">#生物多様性・植生</button>
+          </div>
+          <div style="font-size:0.68rem;font-weight:700;color:#c62828;margin-top:2px;">⚠️ 令和6年能登半島地震 被害・復旧復興（5個）</div>
+          <div class="preset-tags-row">
+            <button type="button" class="tag-preset-btn" data-tag="斜面崩壊・地盤変状">#斜面崩壊・地盤変状</button>
+            <button type="button" class="tag-preset-btn" data-tag="建物被害・公費解体">#建物被害・公費解体</button>
+            <button type="button" class="tag-preset-btn" data-tag="インフラ被害・復旧">#インフラ被害・復旧</button>
+            <button type="button" class="tag-preset-btn" data-tag="生業再建・なりわい復興">#生業再建・なりわい復興</button>
+            <button type="button" class="tag-preset-btn" data-tag="創造的復興・地域拠点">#創造的復興・地域拠点</button>
+          </div>
+        </div>
+        <div class="tag-custom-row">
+          <input type="text" class="tag-custom-input" id="photoTagCustomInput" placeholder="自由タグを入力（例：カナアテ、石垣、仮設）" />
+          <button type="button" class="step-btn" id="photoAddTagBtn" style="padding:5px 10px;font-size:0.74rem;flex-shrink:0;">🏷️ タグ追加</button>
+        </div>
+        <div class="selected-tags-row" id="photoSelectedTagsList"></div>
+      </div>
+      <div>
+        <label id="photoAuthorLabel" style="font-size:0.78rem;font-weight:700;color:#37474f;display:block;margin-bottom:4px;">👤 作成者（ニックネーム）</label>
+        <input type="text" class="tag-custom-input" id="photoAuthorInput" style="width:100%;" placeholder="ニックネームを入力（次回以降も自動入力されます）" />
+      </div>
       <div>
         <label id="photoCommentLabel" style="font-size:0.78rem;font-weight:700;color:#37474f;display:block;margin-bottom:4px;">💬 写真メモのコメント</label>
         <textarea class="photo-comment-input" id="photoCommentInput" placeholder="観察メモやコメントを入力してください（例：アテの林内景観、カキ棚の様子など）"></textarea>
       </div>
       <div class="photo-modal-actions">
         <button type="button" class="photo-btn cancel" id="photoCancelBtn">キャンセル</button>
-        <button type="button" class="photo-btn share" id="photoSaveAndShareBtn">📤 保存して共有</button>
         <button type="button" class="photo-btn primary" id="photoSaveBtn">📌 写真メモを保存</button>
       </div>
     </div>
@@ -1241,8 +1418,9 @@
         : (isMemoCollapsed ? '▼ 展開する' : '▲ 折りたたむ');
 
       document.getElementById('shareAllJsonBtn').textContent = isEnglish ? '📤 Share JSON' : '📤 JSON形式で共有';
-      document.getElementById('shareAllKmzBtn').textContent = isEnglish ? '🌍 Share KMZ' : '🌍 KMZ形式で共有';
       document.getElementById('importMemoLabel').textContent = isEnglish ? '📥 Import Memos' : '📥 メモ読込';
+      document.getElementById('memoTagStatsBtn').textContent = isEnglish ? '📊 Tag Stats' : '📊 タグ集計';
+      document.getElementById('clearAllMemosBtn').textContent = isEnglish ? '🗑️ Clear All' : '🗑️ 全削除';
 
       document.getElementById('panelToggleTitleText').textContent = isEnglish
         ? '📋 Timetable & Info Panel (No.1-15)'
@@ -1865,17 +2043,9 @@
     document.getElementById('nowStopBtn').addEventListener('click', jumpToCurrentScheduledStop);
 
     async function init() {
-      try {
-        const res = await fetch('fukamachi_lab_timetable_1204.csv');
-        if (res.ok) {
-          const text = await res.text();
-          currentItems = parseCSV(text);
-        } else {
-          currentItems = parseCSV(DEFAULT_CSV);
-        }
-      } catch (e) {
-        currentItems = parseCSV(DEFAULT_CSV);
-      }
+      // 全15チェックポイントのデータはHTML内のDEFAULT_CSVに完全内蔵
+      currentItems = parseCSV(DEFAULT_CSV);
+      loadPhotoPins();
       renderData(currentItems);
       fitAllMarkers(false);
       preloadAllPreEqStreetViews();
@@ -1888,8 +2058,6 @@
         }, 350);
       }
 
-      loadPhotoPins();
-
       // 30秒ごとに現在時刻をチェックし、終了したチェックポイントを随時グレーアウト
       setInterval(refreshTimeStates, 30000);
     }
@@ -1897,28 +2065,187 @@
     // ===== 6. 写真メモ（位置情報付き写真＋コメント作成・一覧表示・JSON / KMZ 共有）機能 =====
     let pendingPhotoDataUrl = null;
     let editingPhotoId = null;
+    let currentModalTags = [];
+    let selectedStatsFilterTag = null;
+    const AUTHOR_NICKNAME_KEY = 'fukamachi_lab_author_nickname_v1';
+    const PHOTO_IDB_NAME = 'fukamachi_lab_photo_db_v1';
+    const PHOTO_IDB_STORE = 'photo_memos';
+    const PHOTO_IDB_KEY = 'latest_geojson';
 
-    function loadPhotoPins() {
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().catch(() => {});
+    }
+
+    function openPhotoIdb() {
+      return new Promise((resolve, reject) => {
+        if (!window.indexedDB) {
+          reject(new Error('IndexedDB unsupported'));
+          return;
+        }
+        const req = indexedDB.open(PHOTO_IDB_NAME, 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(PHOTO_IDB_STORE)) {
+            db.createObjectStore(PHOTO_IDB_STORE);
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function savePhotoPinsToIdb(geojsonObj) {
+      try {
+        const db = await openPhotoIdb();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction(PHOTO_IDB_STORE, 'readwrite');
+          tx.objectStore(PHOTO_IDB_STORE).put(geojsonObj, PHOTO_IDB_KEY);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+      } catch (e) {}
+    }
+
+    async function loadPhotoPinsFromIdb() {
+      try {
+        const db = await openPhotoIdb();
+        const data = await new Promise((resolve, reject) => {
+          const tx = db.transaction(PHOTO_IDB_STORE, 'readonly');
+          const req = tx.objectStore(PHOTO_IDB_STORE).get(PHOTO_IDB_KEY);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => reject(req.error);
+        });
+        db.close();
+        return data;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 標準的な GeoJSON FeatureCollection (RFC 7946 / EPSG:4326) オブジェクトを生成
+    function buildStandardGeoJson() {
+      return {
+        type: 'FeatureCollection',
+        name: 'fukamachi_lab_photo_memos',
+        crs: {
+          type: 'name',
+          properties: {
+            name: 'urn:ogc:def:crs:OGC:1.3:CRS84'
+          }
+        },
+        features: photoPins.map((pin, idx) => ({
+          type: 'Feature',
+          id: pin.id,
+          geometry: {
+            type: 'Point',
+            coordinates: [Number(pin.lng), Number(pin.lat)]
+          },
+          properties: {
+            id: pin.id,
+            no: idx + 1,
+            name: `写真メモ #${idx + 1}`,
+            author: pin.author || '',
+            comment: pin.comment,
+            description: pin.comment,
+            tags: Array.isArray(pin.tags) ? pin.tags : [],
+            timestamp: pin.timestamp,
+            latitude: Number(pin.lat),
+            longitude: Number(pin.lng),
+            imageData: pin.imageData
+          }
+        }))
+      };
+    }
+
+    // GeoJSON FeatureCollection（または旧配列形式）から内部リストへ変換
+    function parseGeoJsonToPins(parsed) {
+      const results = [];
+      const list = Array.isArray(parsed)
+        ? parsed
+        : (parsed && parsed.type === 'Feature' ? [parsed] : (parsed && Array.isArray(parsed.features) ? parsed.features : []));
+
+      list.forEach(item => {
+        if (item && item.type === 'Feature' && item.geometry && Array.isArray(item.geometry.coordinates)) {
+          const [lng, lat] = item.geometry.coordinates;
+          const props = item.properties || {};
+          const img = props.imageData || props.image || props.photo || '';
+          const comment = props.comment || props.description || props.name || '写真メモ';
+          const author = props.author || props.creator || props.nickname || '';
+          const rawTags = Array.isArray(props.tags)
+            ? props.tags
+            : (typeof props.tags === 'string' && props.tags.trim() ? props.tags.split(',').map(s => s.trim()).filter(Boolean) : []);
+          const numLat = parseFloat(lat);
+          const numLng = parseFloat(lng);
+          if (!isNaN(numLat) && !isNaN(numLng)) {
+            results.push({
+              id: item.id || props.id || ('pm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
+              lat: numLat,
+              lng: numLng,
+              author,
+              comment,
+              tags: rawTags,
+              timestamp: props.timestamp || props.datetime || '',
+              imageData: img
+            });
+          }
+        } else if (item && !isNaN(item.lat) && !isNaN(item.lng)) {
+          const rawTags = Array.isArray(item.tags) ? item.tags : [];
+          results.push({
+            id: item.id || ('pm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
+            lat: parseFloat(item.lat),
+            lng: parseFloat(item.lng),
+            author: item.author || item.nickname || '',
+            comment: item.comment || item.description || '写真メモ',
+            tags: rawTags,
+            timestamp: item.timestamp || '',
+            imageData: item.imageData || ''
+          });
+        }
+      });
+      return results;
+    }
+
+    async function loadPhotoPins() {
+      let loadedFromLocal = false;
       try {
         const raw = localStorage.getItem(PHOTO_STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) photoPins = parsed;
+          photoPins = parseGeoJsonToPins(parsed);
+          loadedFromLocal = photoPins.length > 0;
         }
       } catch (e) {
         photoPins = [];
       }
       updatePhotoMemoBadgeCount();
       renderPhotoPins();
+
+      // ブラウザ再起動時に localStorage が消去された場合や容量超過時に備え、IndexedDB からも復元
+      const idbData = await loadPhotoPinsFromIdb();
+      if (idbData) {
+        const idbPins = parseGeoJsonToPins(idbData);
+        if (!loadedFromLocal && idbPins.length > 0) {
+          photoPins = idbPins;
+          try {
+            localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(buildStandardGeoJson()));
+          } catch (e) {}
+          updatePhotoMemoBadgeCount();
+          renderPhotoPins();
+        }
+      }
     }
 
     function savePhotoPinsToStorage() {
+      const geojsonObj = buildStandardGeoJson();
+      savePhotoPinsToIdb(geojsonObj);
       try {
-        localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(photoPins));
+        localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(geojsonObj));
       } catch (e) {
+        // localStorage(約5MB上限)を超えた場合もIndexedDBには保存継続しつつ通知
         alert(isEnglish
-          ? 'Browser storage is full. Please delete old photo memos or export them.'
-          : 'ブラウザの保存容量上限に達しました。不要な写真メモを削除するか、ファイル共有で保存してください。');
+          ? 'LocalStorage quota reached (saved to IndexedDB backup). Consider exporting & clearing old memos.'
+          : 'ローカルストレージの容量上限に近づいています（IndexedDBへバックアップ保存しました）。こまめにファイル共有・不要メモの削除を行ってください。');
       }
       updatePhotoMemoBadgeCount();
     }
@@ -2005,64 +2332,89 @@
       return null;
     }
 
-    // 写真をリサイズしてJPEG DataURLを生成
-    function compressImageFile(file, maxDim = 1100, quality = 0.80) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const img = new Image();
-          img.onload = () => {
-            let w = img.width;
-            let h = img.height;
-            if (w > maxDim || h > maxDim) {
-              if (w > h) {
-                h = Math.round((h * maxDim) / w);
-                w = maxDim;
-              } else {
-                w = Math.round((w * maxDim) / h);
-                h = maxDim;
-              }
+    // 写真を省メモリでリサイズしてJPEG DataURLを生成（FileReaderの巨大Base64文字列化を回避し、createImageBitmap / ObjectURLを使用）
+    async function compressImageFile(file, maxDim = 800, quality = 0.72) {
+      // 1) createImageBitmap (resizeWidth / resizeHeight 対応ブラウザではデコード時点で省メモリ縮小)
+      if (window.createImageBitmap) {
+        try {
+          const bmp = await createImageBitmap(file);
+          let w = bmp.width;
+          let h = bmp.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
             }
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, w, h);
-            resolve(canvas.toDataURL('image/jpeg', quality));
-          };
-          img.onerror = reject;
-          img.src = ev.target.result;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(bmp, 0, 0, w, h);
+          if (bmp.close) bmp.close();
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          canvas.width = 1;
+          canvas.height = 1;
+          return dataUrl;
+        } catch (e) {}
+      }
+
+      // 2) フォールバック: URL.createObjectURL を使用（FileReader.readAsDataURL によるメモリ膨張を回避）
+      return new Promise((resolve, reject) => {
+        const objUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(objUrl);
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          canvas.width = 1;
+          canvas.height = 1;
+          resolve(dataUrl);
         };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+        img.onerror = (err) => {
+          URL.revokeObjectURL(objUrl);
+          reject(err);
+        };
+        img.src = objUrl;
       });
     }
 
-    function openCameraTrigger() {
-      editingPhotoId = null;
-      const input = document.getElementById('cameraFileInput');
-      input.value = '';
-      input.click();
+    let activeCameraStream = null;
+
+    function stopLiveCameraStream() {
+      if (activeCameraStream) {
+        activeCameraStream.getTracks().forEach(t => t.stop());
+        activeCameraStream = null;
+      }
+      const video = document.getElementById('liveCameraVideo');
+      if (video) {
+        video.srcObject = null;
+      }
     }
 
-    document.getElementById('mapCameraFab').addEventListener('click', openCameraTrigger);
-
-    document.getElementById('cameraFileInput').addEventListener('change', async (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-
+    function acquireGpsForModal() {
       const statusEl = document.getElementById('photoCoordStatus');
       const latInput = document.getElementById('photoLatInput');
       const lngInput = document.getElementById('photoLngInput');
-      const commentInput = document.getElementById('photoCommentInput');
-      const previewImg = document.getElementById('photoPreviewImg');
 
-      document.getElementById('photoModalTitle').textContent = isEnglish
-        ? '📷 Create Photo Memo'
-        : '📷 写真メモの作成';
-      commentInput.value = '';
-
-      // まず現在のマップ中心を仮セット
       const c = map.getCenter();
       latInput.value = c.lat.toFixed(6);
       lngInput.value = c.lng.toFixed(6);
@@ -2070,22 +2422,7 @@
         ? '📡 Acquiring GPS location...'
         : '📡 スマートフォンの位置情報を取得中...';
 
-      document.getElementById('photoModalBackdrop').classList.add('open');
-
-      // 1) Exif GPS チェック
-      let exifGps = null;
-      try {
-        const buf = await file.arrayBuffer();
-        exifGps = extractExifGpsFromBuffer(buf);
-      } catch (err) {}
-
-      if (exifGps) {
-        latInput.value = exifGps.lat.toFixed(6);
-        lngInput.value = exifGps.lng.toFixed(6);
-        statusEl.textContent = isEnglish
-          ? '📍 Extracted GPS coordinates from photo Exif'
-          : '📍 写真のExifデータから撮影位置を取得しました';
-      } else if (navigator.geolocation) {
+      if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             latInput.value = pos.coords.latitude.toFixed(6);
@@ -2106,9 +2443,253 @@
           ? '📍 Using current map center'
           : '📍 現在の地図中心座標を使用しています';
       }
+    }
+
+    function renderModalSelectedTags() {
+      const listEl = document.getElementById('photoSelectedTagsList');
+      if (listEl) {
+        listEl.innerHTML = currentModalTags.map((tag, idx) =>
+          `<span class="memo-tag-badge">#${escapeHtml(tag)} <span class="remove-tag" onclick="removeModalTag(${idx})" title="削除">✕</span></span>`
+        ).join('');
+      }
+      document.querySelectorAll('#presetTagsContainer .tag-preset-btn').forEach(btn => {
+        const t = btn.getAttribute('data-tag');
+        btn.classList.toggle('active', currentModalTags.includes(t));
+      });
+    }
+
+    window.removeModalTag = function(idx) {
+      currentModalTags.splice(idx, 1);
+      renderModalSelectedTags();
+    };
+
+    function addTagToModal(rawTag) {
+      const cleaned = String(rawTag || '').replace(/^[#＃\s]+|\s+$/g, '');
+      if (!cleaned) return;
+      if (!currentModalTags.includes(cleaned)) {
+        currentModalTags.push(cleaned);
+        renderModalSelectedTags();
+      }
+    }
+
+    document.querySelectorAll('#presetTagsContainer .tag-preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const t = btn.getAttribute('data-tag');
+        const idx = currentModalTags.indexOf(t);
+        if (idx >= 0) {
+          currentModalTags.splice(idx, 1);
+        } else {
+          currentModalTags.push(t);
+        }
+        renderModalSelectedTags();
+      });
+    });
+
+    document.getElementById('photoAddTagBtn').addEventListener('click', () => {
+      const inp = document.getElementById('photoTagCustomInput');
+      if (!inp) return;
+      inp.value.split(/[,、\s]+/).forEach(part => addTagToModal(part));
+      inp.value = '';
+    });
+
+    document.getElementById('photoTagCustomInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('photoAddTagBtn').click();
+      }
+    });
+
+    function renderTagsBadgesHtml(tags) {
+      if (!Array.isArray(tags) || tags.length === 0) return '';
+      return `<div class="selected-tags-row" style="margin:4px 0 6px;">${
+        tags.map(t => `<span class="memo-tag-badge">#${escapeHtml(t)}</span>`).join('')
+      }</div>`;
+    }
+
+    function getSavedAuthorNickname() {
+      try {
+        return localStorage.getItem(AUTHOR_NICKNAME_KEY) || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function updateAuthorButtonLabel() {
+      const btn = document.getElementById('setAuthorNickBtn');
+      if (!btn) return;
+      const nick = getSavedAuthorNickname();
+      btn.textContent = isEnglish
+        ? `👤 Author: ${nick || 'Set Name'}`
+        : `👤 作成者: ${nick || '未設定'}`;
+    }
+
+    document.getElementById('setAuthorNickBtn').addEventListener('click', () => {
+      const current = getSavedAuthorNickname();
+      const input = prompt(
+        isEnglish
+          ? 'Enter your nickname (automatically applied to all future photo memos):'
+          : '作成者のニックネームを入力してください（一度設定すると、以降撮影するすべての写真メモに自動入力されます）：',
+        current
+      );
+      if (input !== null) {
+        const trimmed = input.trim();
+        try { localStorage.setItem(AUTHOR_NICKNAME_KEY, trimmed); } catch (e) {}
+        updateAuthorButtonLabel();
+      }
+    });
+
+    document.getElementById('photoAuthorInput').addEventListener('input', (e) => {
+      const val = (e.target.value || '').trim();
+      try { localStorage.setItem(AUTHOR_NICKNAME_KEY, val); } catch (err) {}
+      updateAuthorButtonLabel();
+    });
+
+    updateAuthorButtonLabel();
+
+    // ブラウザ内で軽量カメラストリーム（最大1280×960）を起動し、OSカメラアプリ起動時のメモリ不足クラッシュを防ぐ
+    async function openCameraTrigger() {
+      editingPhotoId = null;
+      pendingPhotoDataUrl = null;
+      currentModalTags = [];
+      renderModalSelectedTags();
+      document.getElementById('photoTagCustomInput').value = '';
+      const savedNickname = getSavedAuthorNickname();
+      document.getElementById('photoAuthorInput').value = savedNickname;
+      updateAuthorButtonLabel();
+      document.getElementById('photoModalTitle').textContent = isEnglish
+        ? '📷 Create Photo Memo'
+        : '📷 写真メモの作成';
+      document.getElementById('photoCommentInput').value = '';
+      document.getElementById('shutterCaptureBtn').textContent = isEnglish
+        ? '📸 Capture Photo (Low-Memory)'
+        : '📸 この画面を撮影（省メモリ）';
+      document.getElementById('fallbackFilePickerBtn').textContent = isEnglish
+        ? '🖼️ Choose Photo / File'
+        : '🖼️ アルバム・ファイル選択';
+
+      acquireGpsForModal();
+
+      const liveSec = document.getElementById('liveCameraSection');
+      const previewBox = document.getElementById('photoPreviewBox');
+      const retakeBar = document.getElementById('retakeBar');
+      const video = document.getElementById('liveCameraVideo');
+
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          stopLiveCameraStream();
+          activeCameraStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 960, max: 1280 },
+              height: { ideal: 720, max: 960 }
+            },
+            audio: false
+          });
+          video.srcObject = activeCameraStream;
+          await video.play().catch(() => {});
+          liveSec.style.display = 'flex';
+          previewBox.style.display = 'none';
+          retakeBar.style.display = 'none';
+          document.getElementById('photoModalBackdrop').classList.add('open');
+          return;
+        } catch (err) {
+          stopLiveCameraStream();
+        }
+      }
+
+      // WebRTC getUserMedia が使えない環境（file:// 等）ではファイル選択を開く
+      const input = document.getElementById('cameraFileInput');
+      input.value = '';
+      input.click();
+    }
+
+    document.getElementById('mapCameraFab').addEventListener('click', openCameraTrigger);
+
+    // ライブカメラ映像から直接Canvas(最大800px)にキャプチャ
+    document.getElementById('shutterCaptureBtn').addEventListener('click', () => {
+      const video = document.getElementById('liveCameraVideo');
+      if (!video || !video.videoWidth) return;
+      const maxDim = 800;
+      let w = video.videoWidth;
+      let h = video.videoHeight;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, w, h);
+      pendingPhotoDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+      canvas.width = 1;
+      canvas.height = 1;
+
+      stopLiveCameraStream();
+      document.getElementById('photoPreviewImg').src = pendingPhotoDataUrl;
+      document.getElementById('liveCameraSection').style.display = 'none';
+      document.getElementById('photoPreviewBox').style.display = 'flex';
+      document.getElementById('retakeBar').style.display = 'flex';
+    });
+
+    document.getElementById('fallbackFilePickerBtn').addEventListener('click', () => {
+      stopLiveCameraStream();
+      const input = document.getElementById('cameraFileInput');
+      input.value = '';
+      input.click();
+    });
+
+    document.getElementById('retakeCameraBtn').addEventListener('click', () => {
+      openCameraTrigger();
+    });
+
+    document.getElementById('reselectFileBtn').addEventListener('click', () => {
+      stopLiveCameraStream();
+      const input = document.getElementById('cameraFileInput');
+      input.value = '';
+      input.click();
+    });
+
+    document.getElementById('cameraFileInput').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      stopLiveCameraStream();
+      const statusEl = document.getElementById('photoCoordStatus');
+      const latInput = document.getElementById('photoLatInput');
+      const lngInput = document.getElementById('photoLngInput');
+      const previewImg = document.getElementById('photoPreviewImg');
+
+      document.getElementById('liveCameraSection').style.display = 'none';
+      document.getElementById('photoPreviewBox').style.display = 'flex';
+      document.getElementById('retakeBar').style.display = 'flex';
+      document.getElementById('photoModalBackdrop').classList.add('open');
+
+      // 1) Exif GPS チェック（先頭64KBのみスライスして読み込むことで数MB〜十数MBのバッファ確保によるメモリ不足を防止）
+      let exifGps = null;
+      try {
+        const headerBlob = file.slice(0, 65536);
+        const buf = await headerBlob.arrayBuffer();
+        exifGps = extractExifGpsFromBuffer(buf);
+      } catch (err) {}
+
+      if (exifGps) {
+        latInput.value = exifGps.lat.toFixed(6);
+        lngInput.value = exifGps.lng.toFixed(6);
+        statusEl.textContent = isEnglish
+          ? '📍 Extracted GPS coordinates from photo Exif'
+          : '📍 写真のExifデータから撮影位置を取得しました';
+      } else {
+        acquireGpsForModal();
+      }
 
       try {
-        pendingPhotoDataUrl = await compressImageFile(file);
+        pendingPhotoDataUrl = await compressImageFile(file, 800, 0.72);
         previewImg.src = pendingPhotoDataUrl;
       } catch (err) {
         alert('画像の読み込みに失敗しました。');
@@ -2125,6 +2706,7 @@
     });
 
     function closePhotoModal() {
+      stopLiveCameraStream();
       document.getElementById('photoModalBackdrop').classList.remove('open');
       pendingPhotoDataUrl = null;
       editingPhotoId = null;
@@ -2136,7 +2718,17 @@
     function saveCurrentModalPhotoPin() {
       const lat = parseFloat(document.getElementById('photoLatInput').value);
       const lng = parseFloat(document.getElementById('photoLngInput').value);
+      const author = (document.getElementById('photoAuthorInput').value || '').trim();
       const comment = document.getElementById('photoCommentInput').value.trim();
+      if (author) {
+        try { localStorage.setItem(AUTHOR_NICKNAME_KEY, author); } catch (e) {}
+      }
+      const customInp = document.getElementById('photoTagCustomInput');
+      if (customInp && customInp.value.trim()) {
+        customInp.value.split(/[,、\s]+/).forEach(part => addTagToModal(part));
+        customInp.value = '';
+      }
+      const tagsToSave = [...currentModalTags];
 
       if (isNaN(lat) || isNaN(lng)) {
         alert(isEnglish ? 'Please enter valid coordinates.' : '有効な緯度・経度を入力してください。');
@@ -2148,7 +2740,9 @@
         if (target) {
           target.lat = lat;
           target.lng = lng;
+          target.author = author;
           target.comment = comment;
+          target.tags = tagsToSave;
           if (pendingPhotoDataUrl) target.imageData = pendingPhotoDataUrl;
           savePhotoPinsToStorage();
           renderPhotoPins();
@@ -2169,7 +2763,9 @@
         id: 'pm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
         lat,
         lng,
+        author,
         comment: comment || (isEnglish ? 'Photo Memo' : 'フィールド写真メモ'),
+        tags: tagsToSave,
         timestamp: timeStr,
         imageData: pendingPhotoDataUrl
       };
@@ -2186,13 +2782,6 @@
       saveCurrentModalPhotoPin();
     });
 
-    document.getElementById('photoSaveAndShareBtn').addEventListener('click', async () => {
-      const saved = saveCurrentModalPhotoPin();
-      if (saved) {
-        await shareSinglePhotoMemo(saved.id);
-      }
-    });
-
     function renderPhotoPins() {
       photoPinsLayer.clearLayers();
       photoMarkerMap = {};
@@ -2207,16 +2796,22 @@
           popupAnchor: [0, -20]
         });
 
-        const gmapUrl = `https://www.google.com/maps/search/?api=1&query=${pin.lat},${pin.lng}`;
+        const tagsHtml = renderTagsBadgesHtml(pin.tags);
+        const authorHtml = pin.author
+          ? `<span class="memo-author-badge">👤 ${escapeHtml(pin.author)}</span>`
+          : '';
         const popupHtml = `
-          <div class="popup-title">📷 ${isEnglish ? `Photo Memo #${memoNum}` : `写真メモ #${memoNum}`}</div>
+          <div class="popup-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span>📷 ${isEnglish ? `Photo Memo #${memoNum}` : `写真メモ #${memoNum}`}</span>
+            ${authorHtml}
+          </div>
           <div style="font-size:0.74rem;color:#607d8b;margin-bottom:4px;">🕒 ${escapeHtml(pin.timestamp)} | 📍 ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
           <img class="photo-popup-img" src="${pin.imageData}" alt="Photo Memo" onclick="window.open(this.src, '_blank')" title="タップして拡大表示" />
+          ${tagsHtml}
           <div class="photo-popup-comment">${escapeHtml(pin.comment)}</div>
           <div class="card-links">
             <button type="button" class="link-pill share-pill" onclick="shareSinglePhotoMemo('${pin.id}')">📤 ${isEnglish ? 'Share' : '共有'}</button>
             <button type="button" class="link-pill edit-pill" onclick="editPhotoMemo('${pin.id}')">✏️ ${isEnglish ? 'Edit' : 'コメント編集'}</button>
-            <a class="link-pill gmap" href="${gmapUrl}" target="_blank" rel="noopener">🧭 ${isEnglish ? 'Map' : 'Googleマップ'}</a>
             <button type="button" class="link-pill del-pill" onclick="deletePhotoMemo('${pin.id}')">🗑️ ${isEnglish ? 'Delete' : '削除'}</button>
           </div>
         `;
@@ -2232,6 +2827,8 @@
         if (currentFilter === 'all' || currentFilter === 'photo') {
           photoPins.forEach((pin, idx) => {
             const memoNum = idx + 1;
+            const tagsHtml = renderTagsBadgesHtml(pin.tags);
+            const authorBadge = pin.author ? `<span class="memo-author-badge">👤 ${escapeHtml(pin.author)}</span>` : '';
             const card = document.createElement('div');
             card.className = 'card photo-memo-card';
             card.id = `card-${pin.id}`;
@@ -2240,12 +2837,14 @@
               <div class="card-header">
                 <span class="badge-no" style="background:#c62828;">📷${memoNum}</span>
                 <span class="time-range" style="color:#c62828;">${escapeHtml(pin.timestamp)}</span>
+                ${authorBadge}
                 <span class="badge-cat">${isEnglish ? 'Photo Memo' : '写真メモ'}</span>
               </div>
               <div style="display:flex;gap:10px;align-items:flex-start;margin:6px 0;">
                 <img src="${pin.imageData}" alt="Memo" style="width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid #cfd8dc;flex-shrink:0;" />
                 <div style="flex:1;min-width:0;">
                   <div class="card-title" style="margin-bottom:3px;">${escapeHtml(pin.comment)}</div>
+                  ${tagsHtml}
                   <div class="card-place">📍 ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
                 </div>
               </div>
@@ -2261,6 +2860,7 @@
         }
       }
 
+      renderMemoTagStats();
       renderMemoListModalContent();
     }
 
@@ -2278,8 +2878,18 @@
     window.editPhotoMemo = function(id) {
       const pin = photoPins.find(p => p.id === id);
       if (!pin) return;
+      stopLiveCameraStream();
       editingPhotoId = pin.id;
       pendingPhotoDataUrl = pin.imageData;
+      currentModalTags = Array.isArray(pin.tags) ? [...pin.tags] : [];
+      renderModalSelectedTags();
+      document.getElementById('photoTagCustomInput').value = '';
+      let defaultNick = '';
+      try { defaultNick = localStorage.getItem(AUTHOR_NICKNAME_KEY) || ''; } catch (e) {}
+      document.getElementById('photoAuthorInput').value = pin.author || defaultNick;
+      document.getElementById('liveCameraSection').style.display = 'none';
+      document.getElementById('photoPreviewBox').style.display = 'flex';
+      document.getElementById('retakeBar').style.display = 'flex';
       document.getElementById('photoModalTitle').textContent = isEnglish
         ? '✏️ Edit Photo Memo'
         : '✏️ 写真メモの編集';
@@ -2288,8 +2898,8 @@
       document.getElementById('photoLngInput').value = pin.lng.toFixed(6);
       document.getElementById('photoCommentInput').value = pin.comment || '';
       document.getElementById('photoCoordStatus').textContent = isEnglish
-        ? '📍 Coordinates & comment can be updated below'
-        : '📍 座標やコメントを編集して保存できます';
+        ? '📍 Coordinates, tags & comment can be updated below'
+        : '📍 座標・作成者・タグ・コメントを編集して保存できます';
       document.getElementById('photoModalBackdrop').classList.add('open');
     };
 
@@ -2300,6 +2910,22 @@
       savePhotoPinsToStorage();
       renderPhotoPins();
     };
+
+    document.getElementById('clearAllMemosBtn').addEventListener('click', () => {
+      if (photoPins.length === 0) {
+        alert(isEnglish ? 'No photo memos in storage.' : '保存されている写真メモはありません。');
+        return;
+      }
+      const msg = isEnglish
+        ? `Delete all ${photoPins.length} photo memos from browser storage?`
+        : `ブラウザのストレージに保存されている写真メモ（全${photoPins.length}件）をすべて削除して容量を空けますか？`;
+      if (!confirm(msg)) return;
+      photoPins = [];
+      try { localStorage.removeItem(PHOTO_STORAGE_KEY); } catch (e) {}
+      savePhotoPinsToIdb(buildStandardGeoJson());
+      updatePhotoMemoBadgeCount();
+      renderPhotoPins();
+    });
 
     function dataUrlToBlob(dataUrl) {
       const parts = dataUrl.split(',');
@@ -2317,7 +2943,11 @@
       if (idx < 0) return;
       const pin = photoPins[idx];
       const gmapUrl = `https://www.google.com/maps?q=${pin.lat},${pin.lng}`;
-      const shareText = `📷 写真メモ #${idx + 1}\n💬 ${pin.comment}\n🕒 ${pin.timestamp}\n📍 ${pin.lat.toFixed(6)}, ${pin.lng.toFixed(6)}\n🗺️ ${gmapUrl}`;
+      const authorLine = pin.author ? `\n👤 作成者: ${pin.author}` : '';
+      const tagsLine = Array.isArray(pin.tags) && pin.tags.length > 0
+        ? `\n🏷️ ${pin.tags.map(t => '#' + t).join(' ')}`
+        : '';
+      const shareText = `📷 写真メモ #${idx + 1}${authorLine}\n💬 ${pin.comment}${tagsLine}\n🕒 ${pin.timestamp}\n📍 ${pin.lat.toFixed(6)}, ${pin.lng.toFixed(6)}\n🗺️ ${gmapUrl}`;
 
       try {
         const blob = dataUrlToBlob(pin.imageData);
@@ -2349,6 +2979,106 @@
       a.click();
     };
 
+    // 写真メモ一覧のタグ・作成者集計パネル描画＆制御
+    document.getElementById('memoTagStatsBtn').addEventListener('click', () => {
+      const box = document.getElementById('memoTagStatsBox');
+      const btn = document.getElementById('memoTagStatsBtn');
+      const isOpen = box.style.display !== 'none';
+      box.style.display = isOpen ? 'none' : 'block';
+      btn.classList.toggle('active', !isOpen);
+      if (!isOpen) {
+        renderMemoTagStats();
+      }
+    });
+
+    window.toggleStatsTagFilter = function(tag) {
+      selectedStatsFilterTag = (selectedStatsFilterTag === tag) ? null : tag;
+      renderMemoTagStats();
+      renderMemoListModalContent();
+    };
+
+    window.copyTagStatsToClipboard = function() {
+      const tagCounts = {};
+      let totalTagUses = 0;
+      photoPins.forEach(p => {
+        (Array.isArray(p.tags) ? p.tags : []).forEach(t => {
+          tagCounts[t] = (tagCounts[t] || 0) + 1;
+          totalTagUses++;
+        });
+      });
+      const sorted = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
+      const lines = [
+        `📊 写真メモ・タグ集計（総メモ数: ${photoPins.length}件 / タグ総数: ${totalTagUses}回）`,
+        ...sorted.map(([t, c]) => `・#${t}: ${c}回`)
+      ];
+      navigator.clipboard?.writeText(lines.join('\n')).then(() => {
+        alert(isEnglish ? 'Copied tag summary to clipboard!' : 'タグ集計結果をクリップボードにコピーしました。');
+      }).catch(() => {});
+    };
+
+    function renderMemoTagStats() {
+      const box = document.getElementById('memoTagStatsBox');
+      if (!box) return;
+      if (photoPins.length === 0) {
+        box.innerHTML = `<div style="color:#607d8b;text-align:center;padding:6px 0;">${
+          isEnglish ? 'No photo memos registered yet.' : 'まだ写真メモが登録されていません。'
+        }</div>`;
+        return;
+      }
+
+      const tagCounts = {};
+      const authorCounts = {};
+      let totalTagUses = 0;
+      photoPins.forEach(p => {
+        const auth = (p.author || '').trim() || (isEnglish ? 'Unspecified' : '未設定');
+        authorCounts[auth] = (authorCounts[auth] || 0) + 1;
+        (Array.isArray(p.tags) ? p.tags : []).forEach(t => {
+          tagCounts[t] = (tagCounts[t] || 0) + 1;
+          totalTagUses++;
+        });
+      });
+
+      const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
+      const maxCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
+      const authorSummary = Object.entries(authorCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([a, c]) => `<span class="memo-author-badge">👤 ${escapeHtml(a)}: ${c}件</span>`)
+        .join(' ');
+
+      const rowsHtml = sortedTags.length === 0
+        ? `<div style="color:#78909c;margin:4px 0;">${isEnglish ? 'No tags added to photo memos yet.' : 'タグが付与された写真メモはまだありません。'}</div>`
+        : sortedTags.map(([tag, count]) => {
+            const pct = Math.max(8, Math.round((count / maxCount) * 100));
+            const isSelected = selectedStatsFilterTag === tag;
+            return `
+              <div class="stat-bar-row${isSelected ? ' active' : ''}" onclick="toggleStatsTagFilter('${escapeHtml(tag)}')" title="タップしてこのタグの写真メモを絞り込み">
+                <span class="stat-bar-label">#${escapeHtml(tag)}</span>
+                <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%;"></div></div>
+                <span class="stat-bar-count">${count}${isEnglish ? '' : '回'}</span>
+              </div>
+            `;
+          }).join('');
+
+      const filterNotice = selectedStatsFilterTag
+        ? `<div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;background:#e8f5e9;padding:4px 8px;border-radius:6px;font-size:0.72rem;color:#1b5e20;">
+             <span>🔍 <b>#${escapeHtml(selectedStatsFilterTag)}</b> で一覧を絞り込み中</span>
+             <button type="button" class="link-pill" onclick="toggleStatsTagFilter(null)" style="cursor:pointer;">✕ 解除</button>
+           </div>`
+        : '';
+
+      box.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+          <div style="font-weight:800;color:#263238;">
+            📊 ${isEnglish ? 'Summary' : '集計'}: 全 <b>${photoPins.length}</b> 件 / タグ計 <b>${totalTagUses}</b> 回（${sortedTags.length}種類）
+          </div>
+          <button type="button" class="link-pill" onclick="copyTagStatsToClipboard()" style="cursor:pointer;">📋 ${isEnglish ? 'Copy Stats' : '集計をコピー'}</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${authorSummary}</div>
+        <div>${rowsHtml}</div>
+        ${filterNotice}
+      `;
+    }
+
     // ヘッダー直下の「写真メモ一覧」折りたたみパネル内のカードリスト描画（情報パネルとデザイン統一）
     function renderMemoListModalContent() {
       const container = document.getElementById('memoListContainer');
@@ -2362,20 +3092,27 @@
         return;
       }
 
-      container.innerHTML = photoPins.map((pin, idx) => {
+      const filteredPins = selectedStatsFilterTag
+        ? photoPins.map((pin, idx) => ({ pin, idx })).filter(({ pin }) => Array.isArray(pin.tags) && pin.tags.includes(selectedStatsFilterTag))
+        : photoPins.map((pin, idx) => ({ pin, idx }));
+
+      container.innerHTML = filteredPins.map(({ pin, idx }) => {
         const memoNum = idx + 1;
-        const gmapUrl = `https://www.google.com/maps/search/?api=1&query=${pin.lat},${pin.lng}`;
+        const tagsHtml = renderTagsBadgesHtml(pin.tags);
+        const authorBadge = pin.author ? `<span class="memo-author-badge">👤 ${escapeHtml(pin.author)}</span>` : '';
         return `
           <div class="card" style="border-left-color:#c62828;" onclick="focusPhotoPin('${pin.id}')">
             <div class="card-header">
               <span class="badge-no" style="background:#c62828;">📷${memoNum}</span>
               <span class="time-range" style="color:#c62828;">${escapeHtml(pin.timestamp)}</span>
+              ${authorBadge}
               <span class="badge-cat">${isEnglish ? 'Photo Memo' : '写真メモ'}</span>
             </div>
             <div style="display:flex;gap:10px;align-items:flex-start;margin:6px 0;">
               <img src="${pin.imageData}" alt="Memo ${memoNum}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #cfd8dc;flex-shrink:0;" />
               <div style="flex:1;min-width:0;">
                 <div class="card-title" style="margin-bottom:3px;">${escapeHtml(pin.comment)}</div>
+                ${tagsHtml}
                 <div class="card-place">📍 ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
               </div>
             </div>
@@ -2383,7 +3120,6 @@
               <button type="button" class="link-pill" onclick="event.stopPropagation(); focusPhotoPin('${pin.id}');">🎯 ${isEnglish ? 'Map' : '地図で表示'}</button>
               <button type="button" class="link-pill share-pill" onclick="event.stopPropagation(); shareSinglePhotoMemo('${pin.id}');">📤 ${isEnglish ? 'Share' : '単体共有'}</button>
               <button type="button" class="link-pill edit-pill" onclick="event.stopPropagation(); editPhotoMemo('${pin.id}');">✏️ ${isEnglish ? 'Edit' : '編集'}</button>
-              <a class="link-pill gmap" href="${gmapUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation();">🗺️ ${isEnglish ? 'Google Maps' : 'Googleマップ'}</a>
               <button type="button" class="link-pill del-pill" onclick="event.stopPropagation(); deletePhotoMemo('${pin.id}');">🗑️ ${isEnglish ? 'Delete' : '削除'}</button>
             </div>
           </div>
@@ -2415,108 +3151,20 @@
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     }
 
-    // 1) JSON形式（GeoJSON FeatureCollection互換）で一覧を一括共有
+    // 1) 標準的な GeoJSON 形式（FeatureCollection / RFC 7946準拠）で一覧を一括共有
     document.getElementById('shareAllJsonBtn').addEventListener('click', async () => {
       if (photoPins.length === 0) {
         alert(isEnglish ? 'No photo memos to share.' : '共有する写真メモがありません。');
         return;
       }
-      const geojsonObj = {
-        type: 'FeatureCollection',
-        name: 'fukamachi_lab_photo_memos',
-        createdAt: new Date().toISOString(),
-        features: photoPins.map((pin, idx) => ({
-          type: 'Feature',
-          properties: {
-            id: pin.id,
-            no: idx + 1,
-            comment: pin.comment,
-            timestamp: pin.timestamp,
-            imageData: pin.imageData
-          },
-          geometry: {
-            type: 'Point',
-            coordinates: [pin.lng, pin.lat]
-          }
-        }))
-      };
+      const geojsonObj = buildStandardGeoJson();
       const jsonStr = JSON.stringify(geojsonObj, null, 2);
-      const fileName = `fukamachi_photo_memos_${new Date().toISOString().slice(0, 10)}.json`;
-      const file = new File([jsonStr], fileName, { type: 'application/json' });
+      const fileName = `fukamachi_photo_memos_${new Date().toISOString().slice(0, 10)}.geojson`;
+      const file = new File([jsonStr], fileName, { type: 'application/geo+json' });
       await shareOrDownloadFile(
         file,
-        '京大・深町研 フィールドワーク写真メモ (JSON)',
-        `写真メモ一覧（全${photoPins.length}件・JSON形式）`
-      );
-    });
-
-    // 2) KMZ形式（doc.kml + files/photo_N.jpg をZIP圧縮したGoogle Earth / GIS標準形式）で一覧を一括共有
-    document.getElementById('shareAllKmzBtn').addEventListener('click', async () => {
-      if (photoPins.length === 0) {
-        alert(isEnglish ? 'No photo memos to share.' : '共有する写真メモがありません。');
-        return;
-      }
-      if (typeof JSZip === 'undefined') {
-        alert(isEnglish ? 'JSZip library is loading. Please try again.' : 'KMZ生成ライブラリを読み込み中です。通信環境をご確認のうえ再度お試しください。');
-        return;
-      }
-
-      const zip = new JSZip();
-      const imgFolder = zip.folder('files');
-
-      const placemarksXml = photoPins.map((pin, idx) => {
-        const num = idx + 1;
-        const imgFileName = `photo_${num}.jpg`;
-        const base64Data = (pin.imageData.split(',')[1] || '');
-        imgFolder.file(imgFileName, base64Data, { base64: true });
-
-        const safeTitle = escapeHtml(`写真メモ #${num}: ${pin.comment}`);
-        const cdataDesc = `<![CDATA[
-          <div style="font-family:sans-serif;max-width:340px;">
-            <p><b>🕒 撮影日時:</b> ${escapeHtml(pin.timestamp)}</p>
-            <p><b>📍 緯度・経度:</b> ${pin.lat.toFixed(6)}, ${pin.lng.toFixed(6)}</p>
-            <p><b>💬 コメント:</b><br/>${escapeHtml(pin.comment)}</p>
-            <p><img src="files/${imgFileName}" style="max-width:300px;border-radius:6px;" /></p>
-          </div>
-        ]]>`;
-
-        return `
-    <Placemark>
-      <name>${safeTitle}</name>
-      <description>${cdataDesc}</description>
-      <ExtendedData>
-        <Data name="id"><value>${escapeHtml(pin.id)}</value></Data>
-        <Data name="comment"><value>${escapeHtml(pin.comment)}</value></Data>
-        <Data name="timestamp"><value>${escapeHtml(pin.timestamp)}</value></Data>
-        <Data name="imageFile"><value>files/${imgFileName}</value></Data>
-      </ExtendedData>
-      <Point>
-        <coordinates>${pin.lng},${pin.lat},0</coordinates>
-      </Point>
-    </Placemark>`;
-      }).join('\n');
-
-      const kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>京大・深町研究室 ゼミ旅行 写真メモ一覧</name>
-    <description>能登・七尾市中島町フィールドワーク 写真メモ（全${photoPins.length}件）</description>${placemarksXml}
-  </Document>
-</kml>`;
-
-      zip.file('doc.kml', kmlContent);
-
-      const kmzBlob = await zip.generateAsync({
-        type: 'blob',
-        mimeType: 'application/vnd.google-earth.kmz',
-        compression: 'DEFLATE'
-      });
-      const fileName = `fukamachi_photo_memos_${new Date().toISOString().slice(0, 10)}.kmz`;
-      const file = new File([kmzBlob], fileName, { type: 'application/vnd.google-earth.kmz' });
-      await shareOrDownloadFile(
-        file,
-        '京大・深町研 フィールドワーク写真メモ (KMZ)',
-        `写真メモ一覧（全${photoPins.length}件・Google Earth / GIS対応 KMZ形式）`
+        '京大・深町研 フィールドワーク写真メモ (GeoJSON)',
+        `写真メモ一覧（全${photoPins.length}件・標準GeoJSON形式）`
       );
     });
 
@@ -2583,35 +3231,10 @@
         } else {
           const text = await file.text();
           const parsed = JSON.parse(text);
-          const list = Array.isArray(parsed)
-            ? parsed
-            : (Array.isArray(parsed.features) ? parsed.features : []);
-          list.forEach(item => {
-            if (item.type === 'Feature' && item.geometry && Array.isArray(item.geometry.coordinates)) {
-              const [lng, lat] = item.geometry.coordinates;
-              const props = item.properties || {};
-              if (!isNaN(lat) && !isNaN(lng) && props.imageData) {
-                photoPins.push({
-                  id: props.id || ('pm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
-                  lat,
-                  lng,
-                  comment: props.comment || '写真メモ',
-                  timestamp: props.timestamp || '',
-                  imageData: props.imageData
-                });
-                importedCount++;
-              }
-            } else if (!isNaN(item.lat) && !isNaN(item.lng) && item.imageData) {
-              photoPins.push({
-                id: item.id || ('pm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
-                lat: parseFloat(item.lat),
-                lng: parseFloat(item.lng),
-                comment: item.comment || '写真メモ',
-                timestamp: item.timestamp || '',
-                imageData: item.imageData
-              });
-              importedCount++;
-            }
+          const importedList = parseGeoJsonToPins(parsed);
+          importedList.forEach(pin => {
+            photoPins.push(pin);
+            importedCount++;
           });
         }
 
